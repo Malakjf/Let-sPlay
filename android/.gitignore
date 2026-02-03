@@ -1,0 +1,37 @@
+gradle-wrapper.jar
+/.gradle
+/captures/
+/gradlew
+/gradlew.bat
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks
+# Google service account
+serviceAccountKey.json
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+
+# IDE
+.idea/
+*.iml
+
+# Logs
+*.log
+
+# Firebase / GCP
+.firebase/
+serviceAccountKey.json
+
+# Android signing
+release-key.jks
+key.properties
+

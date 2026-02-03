@@ -1,0 +1,19 @@
+I0103 21:47:26.866457    7888 load.go:31] Reloading schema and connectors...
+I0103 21:47:26.935014    7888 control.go:94] [/emulator/letsplay 32b2] UpdateResources(): done
+Main schema: sources: schema\schema.gql [673B] 
+Connector "example": sources: example\queries.gql [1100B] 
+I0103 21:47:26.983363    7888 codegen.go:80] [connector "example" dartSdk] Generating sources into "C:\\letsplay\\lib\\dataconnect_generated"
+I0103 21:47:26.989521    7888 codegen.go:80] [connector "example" adminSdk] Generating sources into "C:\\letsplay\\src\\dataconnect-admin-generated"
+I0103 21:47:26.997759    7888 collector.go:107] schema extensions wrote into "C:\\letsplay\\dataconnect\\.dataconnect\\schema"
+Generated sources: main\mutation.gql [16698B] main\implicit.gql [2249B] prelude.gql [73219B] main\input.gql [44141B] main\relation.gql [25099B] main\query.gql [6172B] 
+I0103 21:47:27.011780    7888 collector.go:107] connector "example" dartSdk wrote into "C:\\letsplay\\lib\\dataconnect_generated"
+Generated sources: list_my_joined_matches.dart [5807B] generated.dart [1578B] .guides/usage.md [292B] .guides/config.json [236B] create_new_match.dart [4634B] join_match.dart [3348B] README.md [5682B] .guides/setup.md [756B] list_available_matches.dart [4444B] 
+I0103 21:47:27.042162    7888 collector.go:107] connector "example" adminSdk wrote into "C:\\letsplay\\src\\dataconnect-admin-generated"
+Generated sources: index.cjs.js [1606B] package.json [632B] index.d.ts [4174B] esm\index.esm.js [1417B] esm\package.json [17B] 
+I0103 21:47:27.144017    7888 installsdk.go:55] Package @dataconnect/admin-generated is already installed. Skipping installation
+I0103 21:47:27.144017    7888 load.go:109] Finished reloading
+I0103 21:47:27.146898    7888 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:9399
+I0103 21:47:27.147443    7888 dev.go:104] Listening on address (HTTP + gRPC): [::1]:9399
+I0103 21:47:30.807124    7888 control.go:94] [/emulator/letsplay 05e7] UpdateResources(): done
+Main schema: sources: schema\schema.gql [673B] 
+Connector "example": sources: example\queries.gql [1100B] 
