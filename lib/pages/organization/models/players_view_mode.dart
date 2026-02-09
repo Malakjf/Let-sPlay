@@ -1,0 +1,1 @@
+enum PlayersViewMode { roster, payments }

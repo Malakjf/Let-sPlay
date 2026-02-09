@@ -1,0 +1,80 @@
+mutation CreateDemoData @transaction @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      username: "demouser1",
+      email: "demouser1@example.com",
+      createdAt: "2024-03-15T12:00:00Z"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      username: "demouser2",
+      email: "demouser2@example.com",
+      createdAt: "2024-03-15T12:00:00Z"
+    }
+  ])
+  field_insertMany(data: [
+    {
+      id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      name: "Central Park",
+      address: "New York, NY",
+      capacity: 100
+    },
+    {
+      id: "f4e3d2c1-b0a9-8765-4321-fedcba09876543",
+      name: "Beach Volleyball Courts",
+      address: "Santa Monica, CA",
+      capacity: 20
+    }
+  ])
+  match_insertMany(data: [
+    {
+      id: "99876543-210f-6e5d-c4b3-a20918273645",
+      name: "Volleyball Game",
+      description: "Casual volleyball game at the beach.",
+      fieldId: "f4e3d2c1-b0a9-8765-4321-fedcba09876543",
+      organizerId: "550e8400-e29b-41d4-a716-446655440000",
+      createdAt: "2024-03-22T10:00:00Z",
+      dateTime: "2024-03-23T14:00:00Z",
+      maxParticipants: 12,
+      status: "Open"
+    },
+    {
+      id: "11223344-5566-7788-9900-aabbccddeeff",
+      name: "Frisbee in the Park",
+      description: "Fun frisbee game in Central Park.",
+      fieldId: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      organizerId: "550e8400-e29b-41d4-a716-446655440001",
+      createdAt: "2024-03-22T11:00:00Z",
+      dateTime: "2024-03-24T15:00:00Z",
+      maxParticipants: 20,
+      status: "Open"
+    }
+  ])
+  matchJoin_insertMany(data: [
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      matchId: "99876543-210f-6e5d-c4b3-a20918273645",
+      joinedAt: "2024-03-22T13:00:00Z"
+    },
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      matchId: "11223344-5566-7788-9900-aabbccddeeff",
+      joinedAt: "2024-03-22T14:00:00Z"
+    }
+  ])
+  matchRequest_insertMany(data: [
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      matchId: "99876543-210f-6e5d-c4b3-a20918273645",
+      createdAt: "2024-03-22T15:00:00Z",
+      status: "Pending"
+    },
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      matchId: "11223344-5566-7788-9900-aabbccddeeff",
+      createdAt: "2024-03-22T16:00:00Z",
+      status: "Pending"
+    }
+  ])
+}
