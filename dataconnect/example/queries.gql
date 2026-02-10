@@ -1,0 +1,39 @@
+mutation CreateNewMatch($fieldId: UUID!, $dateTime: Timestamp!, $description: String!, $maxParticipants: Int!, $name: String!, $status: String!) @auth(level: USER) {
+  match_insert(data: {fieldId: $fieldId, dateTime: $dateTime, description: $description, maxParticipants: $maxParticipants, name: $name, status: $status, organizerId_expr: "auth.uid", createdAt_expr: "request.time"})
+}
+
+query ListAvailableMatches @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  matches(where: {status: {eq: "available"}}) {
+    id
+    name
+    dateTime
+    description
+    maxParticipants
+    field {
+      name
+      address
+    }
+  }
+}
+
+mutation JoinMatch($matchId: UUID!) @auth(level: USER) {
+  matchJoin_insert(data: {matchId: $matchId, userId_expr: "auth.uid", joinedAt_expr: "request.time"})
+}
+
+query ListMyJoinedMatches @auth(level: USER) {
+  matchJoins(where: {userId: {eq_expr: "auth.uid"}}) {
+    match {
+      id
+      name
+      dateTime
+      description
+      maxParticipants
+      field {
+        name
+        address
+      }
+    }
+    joinedAt
+    role
+  }
+}

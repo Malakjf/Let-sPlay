@@ -1,0 +1,763 @@
+extend type Field {
+  """
+  ✨ List `Match` objects in a one-to-many relationship (where `Match`.`field` is this object).
+  """
+  matches_on_field(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Match_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Match_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Match_Having
+  ): [Match!]! @fdc_generated(from: "Match.field", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Field", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Field` table.
+  """
+  _count: Int! @fdc_generated(from: "Field.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Field` table where the `address` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  address_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Field.address", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Field` table where the `capacity` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  capacity_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Field.capacity", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Field` table where the `description` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  description_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Field.description", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Field` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Field.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Field` table where the `name` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  name_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Field.name", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `capacity` field in the `Field` table.
+  """
+  capacity_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Field.capacity", purpose: QUERY_SUM)
+  """
+  ✨ Average the `capacity` field in the `Field` table.
+  """
+  capacity_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Field.capacity", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `capacity` field in the `Field` table.
+  """
+  capacity_min: Int @fdc_generated(from: "Field.capacity", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `capacity` field in the `Field` table.
+  """
+  capacity_max: Int @fdc_generated(from: "Field.capacity", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Field.id", purpose: GLOBAL_ID)
+}
+extend type Match {
+  """
+  ✨ List `MatchJoin` objects in a one-to-many relationship (where `MatchJoin`.`match` is this object).
+  """
+  matchJoins_on_match(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchJoin_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchJoin_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchJoin_Having
+  ): [MatchJoin!]! @fdc_generated(from: "MatchJoin.match", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `MatchRequest` objects in a one-to-many relationship (where `MatchRequest`.`match` is this object).
+  """
+  matchRequests_on_match(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchRequest_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchRequest_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchRequest_Having
+  ): [MatchRequest!]! @fdc_generated(from: "MatchRequest.match", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `User` objects using `MatchJoin` as the join table (a `MatchJoin` object exists where its `match` is this and its `user` is that).
+  """
+  users_via_MatchJoin(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchJoin_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchJoin_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchJoin_Having
+  ): [User!]! @fdc_generated(from: "MatchJoin", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  ✨ List `User` objects using `MatchRequest` as the join table (a `MatchRequest` object exists where its `match` is this and its `user` is that).
+  """
+  users_via_MatchRequest(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchRequest_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchRequest_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchRequest_Having
+  ): [User!]! @fdc_generated(from: "MatchRequest", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "Match", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `Match` table.
+  """
+  _count: Int! @fdc_generated(from: "Match.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `dateTime` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  dateTime_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.dateTime", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `description` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  description_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.description", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `fieldId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  fieldId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.fieldId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `maxParticipants` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  maxParticipants_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.maxParticipants", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `name` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  name_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.name", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `organizerId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  organizerId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.organizerId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `Match` table where the `status` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  status_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "Match.status", purpose: QUERY_COUNT)
+  """
+  ✨ Sum the `maxParticipants` field in the `Match` table.
+  """
+  maxParticipants_sum(
+    """
+    Set to true to sum the distinct values.
+    """
+    distinct: Boolean = false
+  ): Int @fdc_generated(from: "Match.maxParticipants", purpose: QUERY_SUM)
+  """
+  ✨ Average the `maxParticipants` field in the `Match` table.
+  """
+  maxParticipants_avg(
+    """
+    Set to true to average the distinct values.
+    """
+    distinct: Boolean = false
+  ): Float @fdc_generated(from: "Match.maxParticipants", purpose: QUERY_AVG)
+  """
+  ✨ Minimum of the `createdAt` field in the `Match` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "Match.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `dateTime` field in the `Match` table.
+  """
+  dateTime_min: Timestamp @fdc_generated(from: "Match.dateTime", purpose: QUERY_MIN)
+  """
+  ✨ Minimum of the `maxParticipants` field in the `Match` table.
+  """
+  maxParticipants_min: Int @fdc_generated(from: "Match.maxParticipants", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `createdAt` field in the `Match` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "Match.createdAt", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `dateTime` field in the `Match` table.
+  """
+  dateTime_max: Timestamp @fdc_generated(from: "Match.dateTime", purpose: QUERY_MAX)
+  """
+  ✨ Maximum of the `maxParticipants` field in the `Match` table.
+  """
+  maxParticipants_max: Int @fdc_generated(from: "Match.maxParticipants", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "Match.id", purpose: GLOBAL_ID)
+}
+extend type MatchJoin {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "MatchJoin", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `MatchJoin` table.
+  """
+  _count: Int! @fdc_generated(from: "MatchJoin.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchJoin` table where the `joinedAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  joinedAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchJoin.joinedAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchJoin` table where the `matchId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  matchId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchJoin.matchId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchJoin` table where the `role` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  role_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchJoin.role", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchJoin` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchJoin.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Minimum of the `joinedAt` field in the `MatchJoin` table.
+  """
+  joinedAt_min: Timestamp @fdc_generated(from: "MatchJoin.joinedAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `joinedAt` field in the `MatchJoin` table.
+  """
+  joinedAt_max: Timestamp @fdc_generated(from: "MatchJoin.joinedAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "MatchJoin.userId,matchId", purpose: GLOBAL_ID)
+}
+extend type MatchRequest {
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "MatchRequest", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `MatchRequest` table.
+  """
+  _count: Int! @fdc_generated(from: "MatchRequest.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchRequest` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchRequest.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchRequest` table where the `matchId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  matchId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchRequest.matchId", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchRequest` table where the `message` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  message_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchRequest.message", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchRequest` table where the `status` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  status_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchRequest.status", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `MatchRequest` table where the `userId` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  userId_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "MatchRequest.userId", purpose: QUERY_COUNT)
+  """
+  ✨ Minimum of the `createdAt` field in the `MatchRequest` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "MatchRequest.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `createdAt` field in the `MatchRequest` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "MatchRequest.createdAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "MatchRequest.userId,matchId", purpose: GLOBAL_ID)
+}
+extend type User {
+  """
+  ✨ List `Match` objects in a one-to-many relationship (where `Match`.`organizer` is this object).
+  """
+  matches_on_organizer(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Match_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Match_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Match_Having
+  ): [Match!]! @fdc_generated(from: "Match.organizer", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `MatchJoin` objects in a one-to-many relationship (where `MatchJoin`.`user` is this object).
+  """
+  matchJoins_on_user(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchJoin_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchJoin_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchJoin_Having
+  ): [MatchJoin!]! @fdc_generated(from: "MatchJoin.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `MatchRequest` objects in a one-to-many relationship (where `MatchRequest`.`user` is this object).
+  """
+  matchRequests_on_user(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchRequest_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchRequest_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchRequest_Having
+  ): [MatchRequest!]! @fdc_generated(from: "MatchRequest.user", purpose: QUERY_MULTIPLE_ONE_TO_MANY)
+  """
+  ✨ List `Match` objects using `MatchJoin` as the join table (a `MatchJoin` object exists where its `user` is this and its `match` is that).
+  """
+  matches_via_MatchJoin(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchJoin_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchJoin_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchJoin_Having
+  ): [Match!]! @fdc_generated(from: "MatchJoin", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  ✨ List `Match` objects using `MatchRequest` as the join table (a `MatchRequest` object exists where its `user` is this and its `match` is that).
+  """
+  matches_via_MatchRequest(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchRequest_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchRequest_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchRequest_Having
+  ): [Match!]! @fdc_generated(from: "MatchRequest", purpose: QUERY_MULTIPLE_MANY_TO_MANY)
+  """
+  Implicit metadata field that cannot be written. It provides extra information about query results.
+  """
+  _metadata: _Metadata @fdc_generated(from: "User", purpose: METADATA_FIELD)
+  """
+  ✨ Count the number of rows in the `User` table.
+  """
+  _count: Int! @fdc_generated(from: "User.", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `createdAt` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  createdAt_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.createdAt", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `displayName` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  displayName_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.displayName", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `email` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  email_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.email", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `id` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  id_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.id", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `profilePictureUrl` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  profilePictureUrl_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.profilePictureUrl", purpose: QUERY_COUNT)
+  """
+  ✨ Count the number of rows in the `User` table where the `username` field is non-null. Pass the `distinct` argument to instead count the number of distinct values.
+  """
+  username_count(
+    """
+    Set to true to count the number of distinct values.
+    """
+    distinct: Boolean = false
+  ): Int! @fdc_generated(from: "User.username", purpose: QUERY_COUNT)
+  """
+  ✨ Minimum of the `createdAt` field in the `User` table.
+  """
+  createdAt_min: Timestamp @fdc_generated(from: "User.createdAt", purpose: QUERY_MIN)
+  """
+  ✨ Maximum of the `createdAt` field in the `User` table.
+  """
+  createdAt_max: Timestamp @fdc_generated(from: "User.createdAt", purpose: QUERY_MAX)
+  """
+  A generated field that is used for caching results in SDKs.
+  """
+  _id: ID! @fdc_generated(from: "User.id", purpose: GLOBAL_ID)
+}

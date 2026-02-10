@@ -1,0 +1,1521 @@
+"""
+✨ `Field_KeyOutput` returns the primary key fields of table type `Field`.
+
+It has the same format as `Field_Key`, but is only used as mutation return value.
+"""
+scalar Field_KeyOutput
+"""
+✨ `Match_KeyOutput` returns the primary key fields of table type `Match`.
+
+It has the same format as `Match_Key`, but is only used as mutation return value.
+"""
+scalar Match_KeyOutput
+"""
+✨ `MatchJoin_KeyOutput` returns the primary key fields of table type `MatchJoin`.
+
+It has the same format as `MatchJoin_Key`, but is only used as mutation return value.
+"""
+scalar MatchJoin_KeyOutput
+"""
+✨ `MatchRequest_KeyOutput` returns the primary key fields of table type `MatchRequest`.
+
+It has the same format as `MatchRequest_Key`, but is only used as mutation return value.
+"""
+scalar MatchRequest_KeyOutput
+"""
+✨ `User_KeyOutput` returns the primary key fields of table type `User`.
+
+It has the same format as `User_Key`, but is only used as mutation return value.
+"""
+scalar User_KeyOutput
+"""
+✨ Generated data input type for table 'Field'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Field_Data {
+  """
+  ✨ Generated from Field `Field`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Field`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Field`.`address` of type `String!`
+  """
+  address: String
+  """
+  ✨ `_expr` server value variant of `address` (✨ Generated from Field `Field`.`address` of type `String!`)
+  """
+  address_expr: String_Expr
+  """
+  ✨ Generated from Field `Field`.`capacity` of type `Int`
+  """
+  capacity: Int
+  """
+  ✨ `_expr` server value variant of `capacity` (✨ Generated from Field `Field`.`capacity` of type `Int`)
+  """
+  capacity_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `capacity` (✨ Generated from Field `Field`.`capacity` of type `Int`)
+  """
+  capacity_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Field`.`description` of type `String`
+  """
+  description: String
+  """
+  ✨ `_expr` server value variant of `description` (✨ Generated from Field `Field`.`description` of type `String`)
+  """
+  description_expr: String_Expr
+  """
+  ✨ Generated from Field `Field`.`name` of type `String!`
+  """
+  name: String
+  """
+  ✨ `_expr` server value variant of `name` (✨ Generated from Field `Field`.`name` of type `String!`)
+  """
+  name_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Field'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Field_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Field_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Field_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Field_Filter!]
+  """
+  ✨ Generated from Field `Field`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Field`.`address` of type `String!`
+  """
+  address: String_Filter
+  """
+  ✨ Generated from Field `Field`.`capacity` of type `Int`
+  """
+  capacity: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`description` of type `String`
+  """
+  description: String_Filter
+  """
+  ✨ Generated from Field `Field`.`name` of type `String!`
+  """
+  name: String_Filter
+  """
+  ✨ Generated from Field `Field`.`matches_on_field` of type `[Match!]!`
+  """
+  matches_on_field: Match_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Field'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Field_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Field_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Field_Filter
+}
+"""
+✨ Generated having input type for table 'Field'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Field_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Field_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Field_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Field_Having!]
+  """
+  ✨ Generated from Field `Field`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`address_count` of type `Int!`
+  """
+  address_count: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`capacity_count` of type `Int!`
+  """
+  capacity_count: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`description_count` of type `Int!`
+  """
+  description_count: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`name_count` of type `Int!`
+  """
+  name_count: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`capacity_sum` of type `Int`
+  """
+  capacity_sum: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`capacity_avg` of type `Float`
+  """
+  capacity_avg: Float_Filter
+  """
+  ✨ Generated from Field `Field`.`capacity_min` of type `Int`
+  """
+  capacity_min: Int_Filter
+  """
+  ✨ Generated from Field `Field`.`capacity_max` of type `Int`
+  """
+  capacity_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Field'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Field_Key {
+  """
+  ✨ Generated from Field `Field`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Field`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Field'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Field_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Field_Filter
+}
+"""
+✨ Generated order input type for table 'Field'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Field_Order {
+  """
+  ✨ Generated from Field `Field`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`address` of type `String!`
+  """
+  address: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`capacity` of type `Int`
+  """
+  capacity: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`description` of type `String`
+  """
+  description: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`name` of type `String!`
+  """
+  name: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`address_count` of type `Int!`
+  """
+  address_count: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`capacity_count` of type `Int!`
+  """
+  capacity_count: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`description_count` of type `Int!`
+  """
+  description_count: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`name_count` of type `Int!`
+  """
+  name_count: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`capacity_sum` of type `Int`
+  """
+  capacity_sum: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`capacity_avg` of type `Float`
+  """
+  capacity_avg: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`capacity_min` of type `Int`
+  """
+  capacity_min: OrderDirection
+  """
+  ✨ Generated from Field `Field`.`capacity_max` of type `Int`
+  """
+  capacity_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Match'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Match_Data {
+  """
+  ✨ Generated from Field `Match`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Match`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Match`.`fieldId` of type `UUID`
+  """
+  fieldId: UUID
+  """
+  ✨ `_expr` server value variant of `fieldId` (✨ Generated from Field `Match`.`fieldId` of type `UUID`)
+  """
+  fieldId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Match`.`organizerId` of type `UUID`
+  """
+  organizerId: UUID
+  """
+  ✨ `_expr` server value variant of `organizerId` (✨ Generated from Field `Match`.`organizerId` of type `UUID`)
+  """
+  organizerId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Match`.`field` of type `Field`
+  """
+  field: Field_Key
+  """
+  ✨ Generated from Field `Match`.`organizer` of type `User`
+  """
+  organizer: User_Key
+  """
+  ✨ Generated from Field `Match`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `Match`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `Match`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `Match`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `Match`.`dateTime` of type `Timestamp!`
+  """
+  dateTime: Timestamp
+  """
+  ✨ `_expr` server value variant of `dateTime` (✨ Generated from Field `Match`.`dateTime` of type `Timestamp!`)
+  """
+  dateTime_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `dateTime` (✨ Generated from Field `Match`.`dateTime` of type `Timestamp!`)
+  """
+  dateTime_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `dateTime` (✨ Generated from Field `Match`.`dateTime` of type `Timestamp!`)
+  """
+  dateTime_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `Match`.`description` of type `String!`
+  """
+  description: String
+  """
+  ✨ `_expr` server value variant of `description` (✨ Generated from Field `Match`.`description` of type `String!`)
+  """
+  description_expr: String_Expr
+  """
+  ✨ Generated from Field `Match`.`maxParticipants` of type `Int`
+  """
+  maxParticipants: Int
+  """
+  ✨ `_expr` server value variant of `maxParticipants` (✨ Generated from Field `Match`.`maxParticipants` of type `Int`)
+  """
+  maxParticipants_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `maxParticipants` (✨ Generated from Field `Match`.`maxParticipants` of type `Int`)
+  """
+  maxParticipants_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Match`.`name` of type `String!`
+  """
+  name: String
+  """
+  ✨ `_expr` server value variant of `name` (✨ Generated from Field `Match`.`name` of type `String!`)
+  """
+  name_expr: String_Expr
+  """
+  ✨ Generated from Field `Match`.`status` of type `String!`
+  """
+  status: String
+  """
+  ✨ `_expr` server value variant of `status` (✨ Generated from Field `Match`.`status` of type `String!`)
+  """
+  status_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Match'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Match_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Match_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Match_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Match_Filter!]
+  """
+  ✨ Generated from Field `Match`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Match`.`fieldId` of type `UUID`
+  """
+  fieldId: UUID_Filter
+  """
+  ✨ Generated from Field `Match`.`organizerId` of type `UUID`
+  """
+  organizerId: UUID_Filter
+  """
+  ✨ Generated from Field `Match`.`field` of type `Field`
+  """
+  field: Field_Filter
+  """
+  ✨ Generated from Field `Match`.`organizer` of type `User`
+  """
+  organizer: User_Filter
+  """
+  ✨ Generated from Field `Match`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Match`.`dateTime` of type `Timestamp!`
+  """
+  dateTime: Timestamp_Filter
+  """
+  ✨ Generated from Field `Match`.`description` of type `String!`
+  """
+  description: String_Filter
+  """
+  ✨ Generated from Field `Match`.`maxParticipants` of type `Int`
+  """
+  maxParticipants: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`name` of type `String!`
+  """
+  name: String_Filter
+  """
+  ✨ Generated from Field `Match`.`status` of type `String!`
+  """
+  status: String_Filter
+  """
+  ✨ Generated from Field `Match`.`matchJoins_on_match` of type `[MatchJoin!]!`
+  """
+  matchJoins_on_match: MatchJoin_ListFilter
+  """
+  ✨ Generated from Field `Match`.`matchRequests_on_match` of type `[MatchRequest!]!`
+  """
+  matchRequests_on_match: MatchRequest_ListFilter
+  """
+  ✨ Generated from Field `Match`.`users_via_MatchJoin` of type `[User!]!`
+  """
+  users_via_MatchJoin: User_ListFilter
+  """
+  ✨ Generated from Field `Match`.`users_via_MatchRequest` of type `[User!]!`
+  """
+  users_via_MatchRequest: User_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Match'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Match_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Match_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Match_Filter
+}
+"""
+✨ Generated having input type for table 'Match'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Match_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Match_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Match_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Match_Having!]
+  """
+  ✨ Generated from Field `Match`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`dateTime_count` of type `Int!`
+  """
+  dateTime_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`description_count` of type `Int!`
+  """
+  description_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`fieldId_count` of type `Int!`
+  """
+  fieldId_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_count` of type `Int!`
+  """
+  maxParticipants_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`name_count` of type `Int!`
+  """
+  name_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`organizerId_count` of type `Int!`
+  """
+  organizerId_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`status_count` of type `Int!`
+  """
+  status_count: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_sum` of type `Int`
+  """
+  maxParticipants_sum: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_avg` of type `Float`
+  """
+  maxParticipants_avg: Float_Filter
+  """
+  ✨ Generated from Field `Match`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Match`.`dateTime_min` of type `Timestamp`
+  """
+  dateTime_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_min` of type `Int`
+  """
+  maxParticipants_min: Int_Filter
+  """
+  ✨ Generated from Field `Match`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Match`.`dateTime_max` of type `Timestamp`
+  """
+  dateTime_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_max` of type `Int`
+  """
+  maxParticipants_max: Int_Filter
+}
+"""
+✨ Generated key input type for table 'Match'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Match_Key {
+  """
+  ✨ Generated from Field `Match`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Match`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Match'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Match_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Match_Filter
+}
+"""
+✨ Generated order input type for table 'Match'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Match_Order {
+  """
+  ✨ Generated from Field `Match`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`fieldId` of type `UUID`
+  """
+  fieldId: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`organizerId` of type `UUID`
+  """
+  organizerId: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`field` of type `Field`
+  """
+  field: Field_Order
+  """
+  ✨ Generated from Field `Match`.`organizer` of type `User`
+  """
+  organizer: User_Order
+  """
+  ✨ Generated from Field `Match`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`dateTime` of type `Timestamp!`
+  """
+  dateTime: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`description` of type `String!`
+  """
+  description: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`maxParticipants` of type `Int`
+  """
+  maxParticipants: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`name` of type `String!`
+  """
+  name: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`status` of type `String!`
+  """
+  status: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`dateTime_count` of type `Int!`
+  """
+  dateTime_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`description_count` of type `Int!`
+  """
+  description_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`fieldId_count` of type `Int!`
+  """
+  fieldId_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_count` of type `Int!`
+  """
+  maxParticipants_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`name_count` of type `Int!`
+  """
+  name_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`organizerId_count` of type `Int!`
+  """
+  organizerId_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`status_count` of type `Int!`
+  """
+  status_count: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_sum` of type `Int`
+  """
+  maxParticipants_sum: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_avg` of type `Float`
+  """
+  maxParticipants_avg: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`dateTime_min` of type `Timestamp`
+  """
+  dateTime_min: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_min` of type `Int`
+  """
+  maxParticipants_min: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`dateTime_max` of type `Timestamp`
+  """
+  dateTime_max: OrderDirection
+  """
+  ✨ Generated from Field `Match`.`maxParticipants_max` of type `Int`
+  """
+  maxParticipants_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'MatchJoin'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input MatchJoin_Data {
+  """
+  ✨ Generated from Field `MatchJoin`.`userId` of type `UUID!`
+  """
+  userId: UUID
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `MatchJoin`.`userId` of type `UUID!`)
+  """
+  userId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MatchJoin`.`matchId` of type `UUID!`
+  """
+  matchId: UUID
+  """
+  ✨ `_expr` server value variant of `matchId` (✨ Generated from Field `MatchJoin`.`matchId` of type `UUID!`)
+  """
+  matchId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MatchJoin`.`match` of type `Match!`
+  """
+  match: Match_Key
+  """
+  ✨ Generated from Field `MatchJoin`.`user` of type `User!`
+  """
+  user: User_Key
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt` of type `Timestamp!`
+  """
+  joinedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `joinedAt` (✨ Generated from Field `MatchJoin`.`joinedAt` of type `Timestamp!`)
+  """
+  joinedAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `joinedAt` (✨ Generated from Field `MatchJoin`.`joinedAt` of type `Timestamp!`)
+  """
+  joinedAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `joinedAt` (✨ Generated from Field `MatchJoin`.`joinedAt` of type `Timestamp!`)
+  """
+  joinedAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `MatchJoin`.`role` of type `String`
+  """
+  role: String
+  """
+  ✨ `_expr` server value variant of `role` (✨ Generated from Field `MatchJoin`.`role` of type `String`)
+  """
+  role_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'MatchJoin'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MatchJoin_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [MatchJoin_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: MatchJoin_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [MatchJoin_Filter!]
+  """
+  ✨ Generated from Field `MatchJoin`.`userId` of type `UUID!`
+  """
+  userId: UUID_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`matchId` of type `UUID!`
+  """
+  matchId: UUID_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`match` of type `Match!`
+  """
+  match: Match_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt` of type `Timestamp!`
+  """
+  joinedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`role` of type `String`
+  """
+  role: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'MatchJoin'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input MatchJoin_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [MatchJoin_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: MatchJoin_Filter
+}
+"""
+✨ Generated having input type for table 'MatchJoin'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MatchJoin_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [MatchJoin_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: MatchJoin_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [MatchJoin_Having!]
+  """
+  ✨ Generated from Field `MatchJoin`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt_count` of type `Int!`
+  """
+  joinedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`matchId_count` of type `Int!`
+  """
+  matchId_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`role_count` of type `Int!`
+  """
+  role_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt_min` of type `Timestamp`
+  """
+  joinedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt_max` of type `Timestamp`
+  """
+  joinedAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'MatchJoin'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input MatchJoin_Key {
+  """
+  ✨ Generated from Field `MatchJoin`.`userId` of type `UUID!`
+  """
+  userId: UUID
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `MatchJoin`.`userId` of type `UUID!`)
+  """
+  userId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MatchJoin`.`matchId` of type `UUID!`
+  """
+  matchId: UUID
+  """
+  ✨ `_expr` server value variant of `matchId` (✨ Generated from Field `MatchJoin`.`matchId` of type `UUID!`)
+  """
+  matchId_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'MatchJoin'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input MatchJoin_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: MatchJoin_Filter
+}
+"""
+✨ Generated order input type for table 'MatchJoin'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input MatchJoin_Order {
+  """
+  ✨ Generated from Field `MatchJoin`.`userId` of type `UUID!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`matchId` of type `UUID!`
+  """
+  matchId: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`match` of type `Match!`
+  """
+  match: Match_Order
+  """
+  ✨ Generated from Field `MatchJoin`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt` of type `Timestamp!`
+  """
+  joinedAt: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`role` of type `String`
+  """
+  role: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt_count` of type `Int!`
+  """
+  joinedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`matchId_count` of type `Int!`
+  """
+  matchId_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`role_count` of type `Int!`
+  """
+  role_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt_min` of type `Timestamp`
+  """
+  joinedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `MatchJoin`.`joinedAt_max` of type `Timestamp`
+  """
+  joinedAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'MatchRequest'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input MatchRequest_Data {
+  """
+  ✨ Generated from Field `MatchRequest`.`userId` of type `UUID!`
+  """
+  userId: UUID
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `MatchRequest`.`userId` of type `UUID!`)
+  """
+  userId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MatchRequest`.`matchId` of type `UUID!`
+  """
+  matchId: UUID
+  """
+  ✨ `_expr` server value variant of `matchId` (✨ Generated from Field `MatchRequest`.`matchId` of type `UUID!`)
+  """
+  matchId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MatchRequest`.`match` of type `Match!`
+  """
+  match: Match_Key
+  """
+  ✨ Generated from Field `MatchRequest`.`user` of type `User!`
+  """
+  user: User_Key
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `MatchRequest`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `MatchRequest`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `MatchRequest`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `MatchRequest`.`message` of type `String`
+  """
+  message: String
+  """
+  ✨ `_expr` server value variant of `message` (✨ Generated from Field `MatchRequest`.`message` of type `String`)
+  """
+  message_expr: String_Expr
+  """
+  ✨ Generated from Field `MatchRequest`.`status` of type `String!`
+  """
+  status: String
+  """
+  ✨ `_expr` server value variant of `status` (✨ Generated from Field `MatchRequest`.`status` of type `String!`)
+  """
+  status_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'MatchRequest'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MatchRequest_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [MatchRequest_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: MatchRequest_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [MatchRequest_Filter!]
+  """
+  ✨ Generated from Field `MatchRequest`.`userId` of type `UUID!`
+  """
+  userId: UUID_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`matchId` of type `UUID!`
+  """
+  matchId: UUID_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`match` of type `Match!`
+  """
+  match: Match_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`message` of type `String`
+  """
+  message: String_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`status` of type `String!`
+  """
+  status: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'MatchRequest'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input MatchRequest_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [MatchRequest_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: MatchRequest_Filter
+}
+"""
+✨ Generated having input type for table 'MatchRequest'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input MatchRequest_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [MatchRequest_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: MatchRequest_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [MatchRequest_Having!]
+  """
+  ✨ Generated from Field `MatchRequest`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`matchId_count` of type `Int!`
+  """
+  matchId_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`message_count` of type `Int!`
+  """
+  message_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`status_count` of type `Int!`
+  """
+  status_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'MatchRequest'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input MatchRequest_Key {
+  """
+  ✨ Generated from Field `MatchRequest`.`userId` of type `UUID!`
+  """
+  userId: UUID
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `MatchRequest`.`userId` of type `UUID!`)
+  """
+  userId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `MatchRequest`.`matchId` of type `UUID!`
+  """
+  matchId: UUID
+  """
+  ✨ `_expr` server value variant of `matchId` (✨ Generated from Field `MatchRequest`.`matchId` of type `UUID!`)
+  """
+  matchId_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'MatchRequest'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input MatchRequest_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: MatchRequest_Filter
+}
+"""
+✨ Generated order input type for table 'MatchRequest'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input MatchRequest_Order {
+  """
+  ✨ Generated from Field `MatchRequest`.`userId` of type `UUID!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`matchId` of type `UUID!`
+  """
+  matchId: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`match` of type `Match!`
+  """
+  match: Match_Order
+  """
+  ✨ Generated from Field `MatchRequest`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`message` of type `String`
+  """
+  message: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`status` of type `String!`
+  """
+  status: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`matchId_count` of type `Int!`
+  """
+  matchId_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`message_count` of type `Int!`
+  """
+  message_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`status_count` of type `Int!`
+  """
+  status_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `MatchRequest`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'User'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input User_Data {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String
+  """
+  ✨ `_expr` server value variant of `displayName` (✨ Generated from Field `User`.`displayName` of type `String`)
+  """
+  displayName_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String
+  """
+  ✨ `_expr` server value variant of `email` (✨ Generated from Field `User`.`email` of type `String!`)
+  """
+  email_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl` of type `String`
+  """
+  profilePictureUrl: String
+  """
+  ✨ `_expr` server value variant of `profilePictureUrl` (✨ Generated from Field `User`.`profilePictureUrl` of type `String`)
+  """
+  profilePictureUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: String
+  """
+  ✨ `_expr` server value variant of `username` (✨ Generated from Field `User`.`username` of type `String!`)
+  """
+  username_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'User'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [User_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: User_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [User_Filter!]
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String_Filter
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String_Filter
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl` of type `String`
+  """
+  profilePictureUrl: String_Filter
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: String_Filter
+  """
+  ✨ Generated from Field `User`.`matches_on_organizer` of type `[Match!]!`
+  """
+  matches_on_organizer: Match_ListFilter
+  """
+  ✨ Generated from Field `User`.`matchJoins_on_user` of type `[MatchJoin!]!`
+  """
+  matchJoins_on_user: MatchJoin_ListFilter
+  """
+  ✨ Generated from Field `User`.`matchRequests_on_user` of type `[MatchRequest!]!`
+  """
+  matchRequests_on_user: MatchRequest_ListFilter
+  """
+  ✨ Generated from Field `User`.`matches_via_MatchJoin` of type `[Match!]!`
+  """
+  matches_via_MatchJoin: Match_ListFilter
+  """
+  ✨ Generated from Field `User`.`matches_via_MatchRequest` of type `[Match!]!`
+  """
+  matches_via_MatchRequest: Match_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'User'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input User_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [User_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: User_Filter
+}
+"""
+✨ Generated having input type for table 'User'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [User_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: User_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [User_Having!]
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl_count` of type `Int!`
+  """
+  profilePictureUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`username_count` of type `Int!`
+  """
+  username_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'User'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input User_Key {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'User'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input User_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: User_Filter
+}
+"""
+✨ Generated order input type for table 'User'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input User_Order {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: OrderDirection
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl` of type `String`
+  """
+  profilePictureUrl: OrderDirection
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: OrderDirection
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl_count` of type `Int!`
+  """
+  profilePictureUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`username_count` of type `Int!`
+  """
+  username_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+}

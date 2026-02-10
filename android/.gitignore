@@ -12,26 +12,3 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
-# Google service account
-serviceAccountKey.json
-# Flutter / Dart
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-build/
-
-# IDE
-.idea/
-*.iml
-
-# Logs
-*.log
-
-# Firebase / GCP
-.firebase/
-serviceAccountKey.json
-
-# Android signing
-release-key.jks
-key.properties
-

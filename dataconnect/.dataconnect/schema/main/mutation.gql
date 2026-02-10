@@ -1,0 +1,542 @@
+extend type Mutation {
+  """
+  ✨ Insert a single `Field` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  field_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: Field_Data!
+  ): Field_KeyOutput! @fdc_generated(from: "Field", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `Match` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  match_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: Match_Data!
+  ): Match_KeyOutput! @fdc_generated(from: "Match", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `MatchJoin` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  matchJoin_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: MatchJoin_Data!
+  ): MatchJoin_KeyOutput! @fdc_generated(from: "MatchJoin", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `MatchRequest` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  matchRequest_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: MatchRequest_Data!
+  ): MatchRequest_KeyOutput! @fdc_generated(from: "MatchRequest", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert a single `User` into the table and return its key. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  user_insert(
+    """
+    Data object to insert into the table.
+    """
+    data: User_Data!
+  ): User_KeyOutput! @fdc_generated(from: "User", purpose: INSERT_SINGLE)
+  """
+  ✨ Insert `Field` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  field_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [Field_Data!]!
+  ): [Field_KeyOutput!]! @fdc_generated(from: "Field", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `Match` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  match_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [Match_Data!]!
+  ): [Match_KeyOutput!]! @fdc_generated(from: "Match", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `MatchJoin` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  matchJoin_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [MatchJoin_Data!]!
+  ): [MatchJoin_KeyOutput!]! @fdc_generated(from: "MatchJoin", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `MatchRequest` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  matchRequest_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [MatchRequest_Data!]!
+  ): [MatchRequest_KeyOutput!]! @fdc_generated(from: "MatchRequest", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert `User` objects into the table and return their keys. Columns not specified in `data` will receive defaults (e.g. `null`).
+  """
+  user_insertMany(
+    """
+    List of data objects to insert into the table.
+    """
+    data: [User_Data!]!
+  ): [User_KeyOutput!]! @fdc_generated(from: "User", purpose: INSERT_MULTIPLE)
+  """
+  ✨ Insert or update a single `Field` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Field`.
+  """
+  field_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: Field_Data!
+  ): Field_KeyOutput! @fdc_generated(from: "Field", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `Match` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Match`.
+  """
+  match_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: Match_Data!
+  ): Match_KeyOutput! @fdc_generated(from: "Match", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `MatchJoin` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MatchJoin`.
+  """
+  matchJoin_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: MatchJoin_Data!
+  ): MatchJoin_KeyOutput! @fdc_generated(from: "MatchJoin", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `MatchRequest` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MatchRequest`.
+  """
+  matchRequest_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: MatchRequest_Data!
+  ): MatchRequest_KeyOutput! @fdc_generated(from: "MatchRequest", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update a single `User` into the table, based on the primary key. Returns the key of the newly inserted or existing updated `User`.
+  """
+  user_upsert(
+    """
+    Data object to insert or update if it already exists.
+    """
+    data: User_Data!
+  ): User_KeyOutput! @fdc_generated(from: "User", purpose: UPSERT_SINGLE)
+  """
+  ✨ Insert or update `Field` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Field`.
+  """
+  field_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [Field_Data!]!
+  ): [Field_KeyOutput!]! @fdc_generated(from: "Field", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `Match` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `Match`.
+  """
+  match_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [Match_Data!]!
+  ): [Match_KeyOutput!]! @fdc_generated(from: "Match", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `MatchJoin` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MatchJoin`.
+  """
+  matchJoin_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [MatchJoin_Data!]!
+  ): [MatchJoin_KeyOutput!]! @fdc_generated(from: "MatchJoin", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `MatchRequest` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `MatchRequest`.
+  """
+  matchRequest_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [MatchRequest_Data!]!
+  ): [MatchRequest_KeyOutput!]! @fdc_generated(from: "MatchRequest", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Insert or update `User` objects into the table, based on the primary key. Returns the key of the newly inserted or existing updated `User`.
+  """
+  user_upsertMany(
+    """
+    List of data objects to insert or update if it already exists.
+    """
+    data: [User_Data!]!
+  ): [User_KeyOutput!]! @fdc_generated(from: "User", purpose: UPSERT_MULTIPLE)
+  """
+  ✨ Update a single `Field` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Field` or `null` if not found.
+  """
+  field_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Field_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Field_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: Field_Data!
+  ): Field_KeyOutput @fdc_generated(from: "Field", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `Match` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `Match` or `null` if not found.
+  """
+  match_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Match_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Match_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: Match_Data!
+  ): Match_KeyOutput @fdc_generated(from: "Match", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `MatchJoin` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `MatchJoin` or `null` if not found.
+  """
+  matchJoin_update(
+    """
+    The key used to identify the object.
+    """
+    key: MatchJoin_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MatchJoin_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: MatchJoin_Data!
+  ): MatchJoin_KeyOutput @fdc_generated(from: "MatchJoin", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `MatchRequest` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `MatchRequest` or `null` if not found.
+  """
+  matchRequest_update(
+    """
+    The key used to identify the object.
+    """
+    key: MatchRequest_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MatchRequest_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: MatchRequest_Data!
+  ): MatchRequest_KeyOutput @fdc_generated(from: "MatchRequest", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update a single `User` based on `id`, `key` or `first`, setting columns specified in `data`. Returns the key of the updated `User` or `null` if not found.
+  """
+  user_update(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: User_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: User_FirstRow
+
+    """
+    Data object containing fields to be updated.
+    """
+    data: User_Data!
+  ): User_KeyOutput @fdc_generated(from: "User", purpose: UPDATE_SINGLE)
+  """
+  ✨ Update `Field` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  field_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: Field_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: Field_Data!
+  ): Int! @fdc_generated(from: "Field", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `Match` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  match_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: Match_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: Match_Data!
+  ): Int! @fdc_generated(from: "Match", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `MatchJoin` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  matchJoin_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: MatchJoin_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: MatchJoin_Data!
+  ): Int! @fdc_generated(from: "MatchJoin", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `MatchRequest` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  matchRequest_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: MatchRequest_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: MatchRequest_Data!
+  ): Int! @fdc_generated(from: "MatchRequest", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Update `User` objects matching `where` conditions (or `all`, if true) according to `data`. Returns the number of rows updated.
+  """
+  user_updateMany(
+    """
+    Filter condition to specify which rows to update.
+    """
+    where: User_Filter
+
+    """
+    Set to true to update all rows.
+    """
+    all: Boolean = false
+
+    """
+    Data object containing fields to update.
+    """
+    data: User_Data!
+  ): Int! @fdc_generated(from: "User", purpose: UPDATE_MULTIPLE)
+  """
+  ✨ Delete a single `Field` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  field_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Field_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Field_FirstRow
+  ): Field_KeyOutput @fdc_generated(from: "Field", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `Match` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  match_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Match_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Match_FirstRow
+  ): Match_KeyOutput @fdc_generated(from: "Match", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `MatchJoin` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  matchJoin_delete(
+    """
+    The key used to identify the object.
+    """
+    key: MatchJoin_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MatchJoin_FirstRow
+  ): MatchJoin_KeyOutput @fdc_generated(from: "MatchJoin", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `MatchRequest` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  matchRequest_delete(
+    """
+    The key used to identify the object.
+    """
+    key: MatchRequest_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MatchRequest_FirstRow
+  ): MatchRequest_KeyOutput @fdc_generated(from: "MatchRequest", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete a single `User` based on `id`, `key` or `first` and return its key (or `null` if not found).
+  """
+  user_delete(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: User_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: User_FirstRow
+  ): User_KeyOutput @fdc_generated(from: "User", purpose: DELETE_SINGLE)
+  """
+  ✨ Delete `Field` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  field_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: Field_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "Field", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `Match` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  match_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: Match_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "Match", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `MatchJoin` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  matchJoin_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: MatchJoin_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "MatchJoin", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `MatchRequest` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  matchRequest_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: MatchRequest_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "MatchRequest", purpose: DELETE_MULTIPLE)
+  """
+  ✨ Delete `User` objects matching `where` conditions (or `all`, if true). Returns the number of rows deleted.
+  """
+  user_deleteMany(
+    """
+    Filter condition to specify which rows to delete.
+    """
+    where: User_Filter
+
+    """
+    Set to true to delete all rows.
+    """
+    all: Boolean = false
+  ): Int! @fdc_generated(from: "User", purpose: DELETE_MULTIPLE)
+}

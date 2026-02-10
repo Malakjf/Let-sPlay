@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "517530251448",
+    "project_id": "lets-play-app-prod",
+    "storage_bucket": "lets-play-app-prod.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:517530251448:android:5505921fde43ccce60c44d",
+        "android_client_info": {
+          "package_name": "com.letsplay.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVrn-EtM2LAVFNIz49PY_k6kiOiVigK7k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
