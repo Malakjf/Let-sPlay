@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/language.dart';
+import '../services/notification_service.dart';
 import '../services/matches_service.dart';
 import '../utils/route_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -718,6 +719,8 @@ class MatchDetailsScreen extends StatelessWidget {
       return _buildNoDataError(context, ar, theme, null);
     }
 
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
     final String? pitchType = match['pitchType']?.toString();
     final String? gender = match['gender']?.toString();
     final String price = _formatNumber(match['price']);
@@ -975,24 +978,36 @@ class MatchDetailsScreen extends StatelessWidget {
               const SizedBox(height: 32),
 
               // Join/View Players Button
-              FutureBuilder<Map<String, dynamic>>(
-                future: () async {
-                  final status = await _getUserMatchStatus(match);
-                  final role = await _getUserRole();
-                  return {'status': status, 'role': role};
-                }(),
+              FutureBuilder<String>(
+                future: _getUserMatchStatus(match),
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
-                  final status = snapshot.data!['status'] as String;
-                  final role = snapshot.data!['role'] as String?;
-                  final isAdminOrCoach =
-                      role?.toLowerCase() == 'admin' ||
-                      role?.toLowerCase() == 'coach';
+                  final status = snapshot.data ?? 'none';
 
-                  if (isAdminOrCoach) {
+                  // Check if the current user is a manager for THIS specific match.
+                  bool isMatchManager = false;
+                  if (currentUserId != null) {
+                    final organizers =
+                        List<dynamic>.from(match['organizers'] ?? []);
+                    final coaches = List<dynamic>.from(match['coaches'] ?? []);
+                    final referees =
+                        List<dynamic>.from(match['referees'] ?? []);
+
+                    isMatchManager = organizers
+                            .map((e) => e.toString())
+                            .contains(currentUserId) ||
+                        coaches.map((e) => e.toString()).contains(currentUserId) ||
+                        referees.map((e) => e.toString()).contains(currentUserId) ||
+                        match['organizerId']?.toString() == currentUserId ||
+                        match['coachId']?.toString() == currentUserId ||
+                        match['refereeId']?.toString() == currentUserId;
+                  }
+
+                  if (isMatchManager) {
+                    // If user is a manager for this match, show "View Players".
                     return Center(
                       child: ElevatedButton(
                         onPressed: () {
@@ -1044,88 +1059,89 @@ class MatchDetailsScreen extends StatelessWidget {
                         ),
                       ),
                     );
-                  }
-
-                  if (status != 'none') {
-                    // User has some status (confirmed, pending, waiting, rejected)
-                    String label;
-                    Color color;
-
-                    switch (status) {
-                      case 'confirmed':
-                        label = ar ? 'تم الانضمام' : 'Joined';
-                        color = Colors.green;
-                        break;
-                      case 'waiting':
-                        label = ar ? 'قائمة الانتظار' : 'Waiting List';
-                        color = Colors.orange;
-                        break;
-                      case 'rejected':
-                        label = ar ? 'مرفوض' : 'Rejected';
-                        color = Colors.red;
-                        break;
-                      default: // pending
-                        label = ar ? 'قيد الانتظار' : 'Request Pending';
-                        color = Colors.blueGrey;
-                    }
-
-                    return Center(
-                      child: ElevatedButton(
-                        onPressed: null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: color,
-                          disabledBackgroundColor: color,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
                   } else {
-                    // User is not in match - show "Join Match" button
-                    return Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          _joinMatch(context, match, ar);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: playersCount >= maxPlayers
-                              ? Colors.orange
-                              : theme.colorScheme.primary,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 14,
+                    // For all other users (players, or admins not assigned to this match).
+                    if (status != 'none') {
+                      // User has some status (confirmed, pending, waiting, rejected)
+                      String label;
+                      Color color;
+
+                      switch (status) {
+                        case 'confirmed':
+                          label = ar ? 'تم الانضمام' : 'Joined';
+                          color = Colors.green;
+                          break;
+                        case 'waiting':
+                          label = ar ? 'قائمة الانتظار' : 'Waiting List';
+                          color = Colors.orange;
+                          break;
+                        case 'rejected':
+                          label = ar ? 'مرفوض' : 'Rejected';
+                          color = Colors.red;
+                          break;
+                        default: // pending
+                          label = ar ? 'قيد الانتظار' : 'Request Pending';
+                          color = Colors.blueGrey;
+                      }
+
+                      return Center(
+                        child: ElevatedButton(
+                          onPressed: null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: color,
+                            disabledBackgroundColor: color,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
+                          child: Text(
+                            label,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        child: Text(
-                          playersCount >= maxPlayers
-                              ? (ar
-                                    ? 'انضم إلى قائمة الانتظار'
-                                    : 'Join Waiting List')
-                              : (ar ? 'انضم إلى المباراة' : 'Join Match'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                      );
+                    } else {
+                      // User is not in match - show "Join Match" button
+                      return Center(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            _joinMatch(context, match, ar);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: playersCount >= maxPlayers
+                                ? Colors.orange
+                                : theme.colorScheme.primary,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                          ),
+                          child: Text(
+                            playersCount >= maxPlayers
+                                ? (ar
+                                      ? 'انضم إلى قائمة الانتظار'
+                                      : 'Join Waiting List')
+                                : (ar ? 'انضم إلى المباراة' : 'Join Match'),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    );
+                      );
+                    }
                   }
                 },
               ),
@@ -2131,12 +2147,33 @@ class MatchDetailsScreen extends StatelessWidget {
       final isFull = maxPlayers > 0 && currentCount >= maxPlayers;
 
       // Use transactional join (adds to players or waitingList)
+      // This should ideally return the new player count to avoid a refetch.
       await FirebaseService.instance.joinMatchTransaction(
         matchId: matchId.toString(),
         userId: user.uid,
       );
 
       if (!context.mounted) return;
+
+      // --- 🚀 Trigger Notifications on Last Spot / Match Full ---
+      // Refetch the match to get the latest player count post-transaction.
+      final updatedMatchDoc = await FirebaseFirestore.instance
+          .collection('matches')
+          .doc(matchId.toString())
+          .get();
+
+      if (updatedMatchDoc.exists) {
+        final updatedData = updatedMatchDoc.data()!;
+        final newPlayerCount = updatedData['playersCount'] ?? 0;
+        final newMaxPlayers = updatedData['maxPlayers'] ?? 0;
+
+        if (newMaxPlayers > 0 && newPlayerCount == newMaxPlayers - 1) {
+          NotificationService().sendLastSpotNotification(matchId.toString());
+        } else if (newMaxPlayers > 0 && newPlayerCount >= newMaxPlayers) {
+          NotificationService().sendMatchFullNotification(matchId.toString());
+        }
+      }
+      // --- End Notification Logic ---
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

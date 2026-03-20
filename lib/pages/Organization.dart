@@ -2,6 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/language.dart';
 import '../services/firebase_service.dart';
 import '../widgets/GlassContainer.dart';
@@ -42,6 +43,74 @@ class _OrganizationPageState extends State<OrganizationPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Check if user is authenticated before building StreamBuilder
+    final user = FirebaseAuth.instance.currentUser;
+    final theme = Theme.of(context);
+    final ar = widget.ctrl.isArabic;
+
+    // If user is null (guest mode), show login required message
+    if (user == null) {
+      return Directionality(
+        textDirection: ar ? TextDirection.rtl : TextDirection.ltr,
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(ar ? 'المباريات' : 'Matches'),
+            actions: const [LogoButton()],
+          ),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.lock_outline,
+                    size: 80,
+                    color: theme.colorScheme.primary.withOpacity(0.7),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    ar ? 'تسجيل الدخول مطلوب' : 'Login Required',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    ar
+                        ? 'يرجى تسجيل الدخول للوصول إلى صفحة التنظيم'
+                        : 'Please login to access the organization page',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.pushNamed(context, '/login'),
+                    icon: const Icon(Icons.login),
+                    label: Text(ar ? 'تسجيل الدخول' : 'Login'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return ListenableBuilder(
       listenable: widget.ctrl,
       builder: (context, _) {
@@ -63,15 +132,17 @@ class _OrganizationPageState extends State<OrganizationPage> {
                     .orderBy('date', descending: true)
                     .snapshots(),
                 builder: (context, snapshot) {
+                  // Handle loading state
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
 
+                  // Handle error state - prevents indefinite loading
                   if (snapshot.hasError) {
                     debugPrint(
                       '❌ Organization Stream Error: ${snapshot.error}',
                     );
-                    return _emptyState(ar);
+                    return _buildErrorState(ar, theme, snapshot.error);
                   }
 
                   if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -112,6 +183,48 @@ class _OrganizationPageState extends State<OrganizationPage> {
             style: const TextStyle(color: Colors.white60),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState(bool ar, ThemeData theme, dynamic error) {
+    final errorStr = error.toString();
+    final isPermissionDenied = errorStr.contains('permission-denied') || 
+                               errorStr.contains('PERMISSION_DENIED');
+    
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Colors.red.withOpacity(0.7),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              isPermissionDenied
+                  ? (ar ? 'ليس لديك صلاحية' : 'Access denied')
+                  : (ar ? 'حدث خطأ' : 'Error occurred'),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isPermissionDenied
+                  ? (ar ? 'يرجى تسجيل الدخول' : 'Please login')
+                  : (ar ? 'حاول مرة أخرى' : 'Please try again'),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

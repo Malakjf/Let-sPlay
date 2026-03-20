@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 import 'notification_service.dart';
 
@@ -214,6 +215,13 @@ class MatchesService extends ChangeNotifier {
 
   // Firestore integration methods
   Future<void> loadMatchesFromFirestore() async {
+    // 🔒 GUARD: Don't execute Firestore query if no user is logged in
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('⚠️ No user logged in - skipping Firestore query for matches');
+      return;
+    }
+    
     try {
       final matchesData = await _firebaseService.getMatches();
       _matches
@@ -275,6 +283,12 @@ class MatchesService extends ChangeNotifier {
 
   void loadMatches() {
     // Load matches from Firestore when service is initialized
+    // 🔒 GUARD: Only load if user is authenticated
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('⚠️ No user logged in - skipping loadMatches');
+      return;
+    }
     loadMatchesFromFirestore();
   }
 

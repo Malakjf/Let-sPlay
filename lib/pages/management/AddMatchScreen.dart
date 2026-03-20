@@ -110,7 +110,7 @@ class _AddMatchScreenState extends State<AddMatchScreen>
           .collection('users')
           .where(
             'role',
-            whereIn: ['coach', 'admin', 'Coach', 'Admin', 'COACH', 'ADMIN'],
+            whereIn: ['coach', 'admin', 'Coach', 'Admin', 'COACH', 'ADMIN', 'referee', 'Referee', 'REFEREE'],
           )
           .get();
 
@@ -119,11 +119,7 @@ class _AddMatchScreenState extends State<AddMatchScreen>
         return {
           'id': doc.id,
           'name':
-              data['name'] ??
-              data['fullName'] ??
-              data['displayName'] ??
-              data['username'] ??
-              'Unknown Coach',
+              data['name'] ?? data['username'] ?? data['displayName'] ?? 'Unknown',
           'email': data['email'] ?? '',
           'phone': data['phone'] ?? '',
           'role': data['role'] ?? 'coach',
@@ -342,7 +338,7 @@ class _AddMatchScreenState extends State<AddMatchScreen>
           .where(
             'role',
             whereIn: [
-              'organizer',
+                           'organizer',
               'admin',
               'Organizer',
               'Admin',
@@ -357,11 +353,7 @@ class _AddMatchScreenState extends State<AddMatchScreen>
         return {
           'id': doc.id,
           'name':
-              data['name'] ??
-              data['fullName'] ??
-              data['displayName'] ??
-              data['username'] ??
-              'Unknown Organizer',
+              data['name'] ?? data['username'] ?? data['displayName'] ?? 'Unknown',
           'email': data['email'] ?? '',
           'phone': data['phone'] ?? '',
           'role': data['role'] ?? 'organizer',
@@ -770,14 +762,12 @@ class _AddMatchScreenState extends State<AddMatchScreen>
         'ageFrom': int.tryParse(_ageFromCtrl.text.trim()) ?? 18,
         'ageTo': int.tryParse(_ageToCtrl.text.trim()) ?? 35,
         'maxPlayers': int.tryParse(_maxPlayersCtrl.text.trim()) ?? 22,
-        'date': combinedDateTime.toIso8601String(),
+        'date': Timestamp.fromDate(combinedDateTime),
         'time': _selectedTime!.format(context),
         'coaches': _selectedCoaches.map((c) => c['id'] as String).toList(),
-        'organizers': _selectedOrganizers
-            .map((o) => o['id'] as String)
-            .toList(),
-        'createdAt': DateTime.now().toIso8601String(),
-        'updatedAt': DateTime.now().toIso8601String(),
+        'organizers': _selectedOrganizers.map((o) => o['id'] as String).toList(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
         'playersCount': 0,
         'fieldAmenities': _selectedFieldData?['amenities'] ?? [],
         'fieldData': fieldData,
@@ -1873,6 +1863,7 @@ class _AddMatchScreenState extends State<AddMatchScreen>
   }
 }
 
+
 // Wrapper widget to handle match editing
 class _EditMatchScreen extends StatefulWidget {
   final LocaleController ctrl;
@@ -1947,20 +1938,7 @@ class _EditMatchScreenState extends State<_EditMatchScreen>
       }
     }
 
-    if (match['time'] != null) {
-      try {
-        final timeStr = match['time'] as String;
-        final timeParts = timeStr.split(':');
-        if (timeParts.length == 2) {
-          _selectedTime = TimeOfDay(
-            hour: int.parse(timeParts[0]),
-            minute: int.parse(timeParts[1]),
-          );
-        }
-      } catch (e) {
-        print('Error parsing time: $e');
-      }
-    }
+    _selectedTime = _parseTime(match['time']);
 
     // Set coaches and organizers - handle both List<String> and List<Map> formats
     if (match['coaches'] != null && match['coaches'] is List) {
@@ -1989,6 +1967,37 @@ class _EditMatchScreenState extends State<_EditMatchScreen>
     // Load actual names for coaches/organizers if we only have IDs
     _loadCoachAndOrganizerNames();
     _matchesService.loadMatches();
+  }
+
+  TimeOfDay? _parseTime(dynamic timeValue) {
+    if (timeValue == null || timeValue is! String || timeValue.isEmpty) {
+      return null;
+    }
+
+    try {
+      final timeStr = timeValue.trim();
+      final isPM = timeStr.toUpperCase().contains('PM');
+      final isAM = timeStr.toUpperCase().contains('AM');
+
+      final numeric = timeStr.replaceAll(RegExp(r'[APMapm ]'), '');
+      final parts = numeric.split(':');
+
+      if (parts.length != 2) return null;
+
+      final hourPart = int.tryParse(parts[0]);
+      final minutePart = int.tryParse(parts[1]);
+
+      if (hourPart == null || minutePart == null) return null;
+
+      int hour = hourPart;
+      if (isPM && hour < 12) hour += 12;
+      if (isAM && hour == 12) hour = 0; // Midnight case
+
+      return TimeOfDay(hour: hour, minute: minutePart);
+    } catch (e) {
+      print('Error parsing time: $e');
+      return null;
+    }
   }
 
   Future<void> _loadCoachAndOrganizerNames() async {
@@ -2144,14 +2153,21 @@ class _EditMatchScreenState extends State<_EditMatchScreen>
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('role', isEqualTo: 'Coach')
+          .where(
+            'role',
+            whereIn: ['coach', 'admin', 'Coach', 'Admin', 'COACH', 'ADMIN', 'referee', 'Referee', 'REFEREE'],
+          )
           .get();
 
       if (!mounted) return;
 
-      final coaches = querySnapshot.docs
-          .map((doc) => {'id': doc.id, 'name': doc.data()['name'] ?? 'Unknown'})
-          .toList();
+      final coaches = querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id, 
+          'name': data['name'] ?? data['fullName'] ?? data['displayName'] ?? data['username'] ?? 'Unknown'
+        };
+      }).toList();
 
       final selectedCoaches = await showDialog<List<Map<String, dynamic>>>(
         context: context,
@@ -2226,14 +2242,21 @@ class _EditMatchScreenState extends State<_EditMatchScreen>
     try {
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('role', isEqualTo: 'Organizer')
+          .where(
+            'role',
+            whereIn: ['organizer', 'admin', 'Organizer', 'Admin', 'ORGANIZER', 'ADMIN'],
+          )
           .get();
 
       if (!mounted) return;
 
-      final organizers = querySnapshot.docs
-          .map((doc) => {'id': doc.id, 'name': doc.data()['name'] ?? 'Unknown'})
-          .toList();
+      final organizers = querySnapshot.docs.map((doc) {
+        final data = doc.data();
+        return {
+          'id': doc.id, 
+          'name': data['name'] ?? data['fullName'] ?? data['displayName'] ?? data['username'] ?? 'Unknown'
+        };
+      }).toList();
 
       final selectedOrganizers = await showDialog<List<Map<String, dynamic>>>(
         context: context,
@@ -2349,17 +2372,14 @@ class _EditMatchScreenState extends State<_EditMatchScreen>
         'ageTo': int.tryParse(_ageToCtrl.text) ?? 35,
         'maxPlayers': int.tryParse(_maxPlayersCtrl.text) ?? 22,
         'playersCount': widget.matchData['playersCount'] ?? 0, // Preserve count
-        'coaches': _selectedCoaches,
-        'organizers': _selectedOrganizers,
-        'date':
-            '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}',
-        'time':
-            '${_selectedTime!.hour.toString().padLeft(2, '0')}:${_selectedTime!.minute.toString().padLeft(2, '0')}',
-        'dateTime': combinedDateTime.toIso8601String(),
+        'coaches': _selectedCoaches.map((c) => c['id']).toList(),
+        'organizers': _selectedOrganizers.map((o) => o['id']).toList(),
+        'date': Timestamp.fromDate(combinedDateTime),
+        'time': _selectedTime!.format(context),
         'createdAt':
             widget.matchData['createdAt'] ??
-            Timestamp.now(), // Preserve original timestamp
-        'updatedAt': Timestamp.now(),
+            FieldValue.serverTimestamp(), // Preserve original timestamp
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
       // Update in Firestore

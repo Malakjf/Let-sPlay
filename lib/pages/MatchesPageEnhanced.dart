@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/language.dart';
+import '../services/guest_service.dart';
 import '../models/user_permission.dart';
 import 'MatchEditPage.dart';
 import 'MatchDetails.dart';
@@ -100,15 +101,19 @@ class _MatchesPageEnhancedState extends State<MatchesPageEnhanced> {
       }
     } catch (e) {
       debugPrint('❌ Error loading matches: $e');
-      if (e.toString().contains('failed-precondition')) {
-        debugPrint(
-          '⚠️ Missing Index on matches collection. Showing empty/cached list.',
-        );
-      }
+      
       if (mounted) {
         setState(() {
+          // Show empty list when error occurs
+          _matches = [];
+          _filteredMatches = [];
           _isLoading = false;
         });
+        
+        final errorString = e.toString();
+        if (errorString.contains('failed-precondition')) {
+          debugPrint('⚠️ Missing Index on matches collection. Showing empty/cached list.');
+        }
       }
     }
   }
@@ -457,7 +462,13 @@ class _MatchCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       child: InkWell(
-        onTap: onTap,
+        onTap: () {
+          // Check if user is guest before navigating - redirect to login if guest
+          if (!GuestService.handleGuestInteraction(context, ar)) {
+            return; // Guest user - blocked, already redirected to login
+          }
+          onTap();
+        },
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -664,11 +675,17 @@ class _MatchCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   TextButton(
-                    onPressed: hasJoined
-                        ? onTap
-                        : () {
-                            onTap();
-                          },
+                    onPressed: () {
+                      // Check if user is guest before joining - redirect to login if guest
+                      if (!GuestService.handleGuestInteraction(context, ar)) {
+                        return; // Guest user - blocked, already redirected to login
+                      }
+                      if (hasJoined) {
+                        onTap();
+                      } else {
+                        onTap();
+                      }
+                    },
                     style: TextButton.styleFrom(
                       foregroundColor: theme.colorScheme.primary.withOpacity(
                         0.8,

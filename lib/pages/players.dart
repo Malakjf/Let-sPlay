@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:letsplay/widgets/App_Bottom_Nav.dart';
 import 'package:letsplay/widgets/LogoButton.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:async';
 import '../services/language.dart';
 import 'package:letsplay/services/player_stats_store.dart';
@@ -206,6 +207,67 @@ class _PlayersScreenState extends State<PlayersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Check if user is authenticated before building StreamBuilder
+    final user = FirebaseAuth.instance.currentUser;
+    final theme = Theme.of(context);
+    final ar = widget.ctrl.isArabic;
+
+    // If user is null (guest mode), show login required message
+    if (user == null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.lock_outline,
+                  size: 80,
+                  color: theme.colorScheme.primary.withOpacity(0.7),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  ar ? 'تسجيل الدخول مطلوب' : 'Login Required',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  ar
+                      ? 'يرجى تسجيل الدخول للوصول إلى قائمة اللاعبين'
+                      : 'Please login to access the players list',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/login'),
+                  icon: const Icon(Icons.login),
+                  label: Text(ar ? 'تسجيل الدخول' : 'Login'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     // ✅ Handle missing matchId
     if (_resolvedMatchId == null) {
       return const Scaffold(
@@ -217,9 +279,55 @@ class _PlayersScreenState extends State<PlayersScreen> {
     return StreamBuilder<List<PlayerItem>>(
       stream: _playersStream,
       builder: (context, snapshot) {
+        // Handle loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        // Handle error state - prevents indefinite loading
+        if (snapshot.hasError) {
+          final errorStr = snapshot.error.toString();
+          final isPermissionDenied = errorStr.contains('permission-denied') || 
+                                     errorStr.contains('PERMISSION_DENIED');
+          
+          return Scaffold(
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: Colors.red.withOpacity(0.7),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      isPermissionDenied
+                          ? (ar ? 'ليس لديك صلاحية' : 'Access denied')
+                          : (ar ? 'حدث خطأ' : 'Error occurred'),
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isPermissionDenied
+                          ? (ar ? 'يرجى تسجيل الدخول' : 'Please login')
+                          : (ar ? 'حاول مرة أخرى' : 'Please try again'),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           );
         }
 

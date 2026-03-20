@@ -6,6 +6,7 @@ import '../services/firebase_service.dart';
 import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import '../services/language.dart';
 import '../widgets/AnimatedButton.dart';
+import 'MainLayout.dart';
 
 class SignUpPage extends StatefulWidget {
   final LocaleController ctrl;
@@ -25,7 +26,7 @@ class _SignUpPageState extends State<SignUpPage> {
   final _emerg = TextEditingController();
   final _city = TextEditingController();
   final _area = TextEditingController();
-  final _postalCode = TextEditingController();
+  //final _postalCode = TextEditingController();
   PhoneNumber? _regularPhone; // Store regular phone number
   final FirebaseService _firebaseService = FirebaseService.instance;
   bool _isLoading = false;
@@ -84,11 +85,7 @@ class _SignUpPageState extends State<SignUpPage> {
   String _areaL(bool ar) => ar ? 'المنطقة' : 'Area';
   String _areaH(bool ar) => ar ? 'أدخل منطقتك' : 'Enter your area';
   String _areaE(bool ar) => ar ? 'أدخل المنطقة' : 'Please enter your area';
-  String _postalL(bool ar) => ar ? 'الرمز البريدي' : 'Postal Code';
-  String _postalH(bool ar) =>
-      ar ? 'أدخل رمزك البريدي' : 'Enter your postal code';
-  String _postalE(bool ar) =>
-      ar ? 'أدخل الرمز البريدي' : 'Please enter postal code';
+  //String _postalL(bool ar) => ar ? 'الرمز البريدي' : 'Postal Code';
   String _signup(bool ar) => ar ? 'إنشاء حساب' : 'SIGN UP';
   String _login(bool ar) => ar ? 'تسجيل الدخول' : 'LOGIN';
 
@@ -150,7 +147,7 @@ class _SignUpPageState extends State<SignUpPage> {
     _emerg.dispose();
     _city.dispose();
     _area.dispose();
-    _postalCode.dispose();
+    // _postalCode.dispose();
     super.dispose();
   }
 
@@ -255,7 +252,7 @@ class _SignUpPageState extends State<SignUpPage> {
         'emergencyPhone': _emerg.text.trim(),
         'city': _city.text.trim(),
         'area': _area.text.trim(),
-        'postalCode': _postalCode.text.trim(),
+        // 'postalCode': _postalCode.text.trim(),
         'dateOfBirth': _dob.text,
         'gender': _selectedGender ?? 'Not specified',
         'role': _isAcademyPlayer ? 'academy_player' : 'Player',
@@ -310,8 +307,10 @@ class _SignUpPageState extends State<SignUpPage> {
             backgroundColor: Colors.green,
           ),
         );
-        // Don't navigate - let the auth state change handle it
-        // The StreamBuilder in main.dart will automatically show the home page
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => MainLayout(ctrl: widget.ctrl)),
+          (route) => false,
+        );
       }
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ [SIGNUP UI] FirebaseAuthException: ${e.code}');
@@ -818,21 +817,6 @@ class _SignUpPageState extends State<SignUpPage> {
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return _areaE(ar);
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Postal Code
-                    _buildTextFormField(
-                      controller: _postalCode,
-                      label: _postalL(ar),
-                      hint: _postalH(ar),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return _postalE(ar);
                         }
                         return null;
                       },

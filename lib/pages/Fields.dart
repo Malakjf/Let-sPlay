@@ -11,6 +11,7 @@ import 'management/AddFieldScreen.dart';
 class FieldsScreen extends StatefulWidget {
   final LocaleController ctrl;
   final UserPermission userPermission;
+  
   const FieldsScreen({
     super.key,
     required this.ctrl,
@@ -166,6 +167,15 @@ class _FieldsScreenState extends State<FieldsScreen> {
   /* -------------------------------------------------*/
   @override
   Widget build(BuildContext context) {
+    // Get screen size for responsive design
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+    
+    // Calculate responsive values
+    final horizontalPadding = screenWidth * 0.05;
+    final headerFontSize = screenWidth > 600 ? 26.0 : 22.0;
+    
     return ListenableBuilder(
       listenable: widget.ctrl,
       builder: (context, _) {
@@ -175,229 +185,241 @@ class _FieldsScreenState extends State<FieldsScreen> {
           textDirection: ar ? TextDirection.rtl : TextDirection.ltr,
           child: Scaffold(
             backgroundColor: theme.scaffoldBackgroundColor,
-            body: Column(
-              children: [
-                /* --------------- Header section --------------- */
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Center(
-                        child: Text(
-                          ar ? 'قائمة الملاعب' : 'Fields List',
-                          style: GoogleFonts.spaceGrotesk(
-                            color: theme.textTheme.displayLarge?.color,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 22,
+            body: SafeArea(
+              child: Column(
+                children: [
+                  /* --------------- Header section --------------- */
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      16,
+                      horizontalPadding,
+                      8,
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Center(
+                          child: Text(
+                            ar ? 'قائمة الملاعب' : 'Fields List',
+                            style: GoogleFonts.spaceGrotesk(
+                              color: theme.textTheme.displayLarge?.color,
+                              fontWeight: FontWeight.bold,
+                              fontSize: headerFontSize,
+                            ),
                           ),
                         ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        child: Row(
-                          children: [
-                            if (!_isLoading && _error == null)
-                              IconButton(
-                                icon: Icon(
-                                  Icons.refresh,
-                                  color: theme.textTheme.bodyMedium?.color,
+                        Positioned(
+                          right: 0,
+                          child: Row(
+                            children: [
+                              if (!_isLoading && _error == null)
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.refresh,
+                                    color: theme.textTheme.bodyMedium?.color,
+                                  ),
+                                  onPressed: _loadFields,
+                                  tooltip: ar ? 'تحديث' : 'Refresh',
                                 ),
-                                onPressed: _loadFields,
-                                tooltip: ar ? 'تحديث' : 'Refresh',
-                              ),
-                            const LogoButton(),
-                          ],
+                              const LogoButton(),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                /* --------------- Search + Sort row --------------- */
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _searchCtrl,
-                          onChanged: _onSearch,
-                          style: TextStyle(
-                            color: theme.textTheme.bodyMedium?.color,
-                          ),
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: theme.cardColor,
-                            hintText: ar
-                                ? 'ابحث بالاسم أو الموقع'
-                                : 'Search by name or location',
-                            hintStyle: TextStyle(
-                              color:
-                                  theme.textTheme.bodyMedium?.color
-                                      ?.withOpacity(0.9) ??
-                                  Colors.grey,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search,
-                              color: theme.textTheme.bodyMedium?.color,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: EdgeInsets.zero,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      IconButton(
-                        onPressed: _onSort,
-                        icon: Icon(
-                          Icons.sort,
-                          color: theme.textTheme.bodyMedium?.color,
-                        ),
-                        tooltip: ar ? 'ترتيب حسب الاسم' : 'Sort by name',
-                      ),
-                    ],
-                  ),
-                ),
-
-                /* --------------- Loading/Error States --------------- */
-                if (_isLoading)
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            color: theme.colorScheme.primary,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            ar ? 'جاري تحميل الملاعب...' : 'Loading fields...',
+                  /* --------------- Search + Sort row --------------- */
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      16,
+                      horizontalPadding,
+                      8,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchCtrl,
+                            onChanged: _onSearch,
                             style: TextStyle(
                               color: theme.textTheme.bodyMedium?.color,
                             ),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: theme.cardColor,
+                              hintText: ar
+                                  ? 'ابحث بالاسم أو الموقع'
+                                  : 'Search by name or location',
+                              hintStyle: TextStyle(
+                                color:
+                                    theme.textTheme.bodyMedium?.color
+                                        ?.withOpacity(0.9) ??
+                                    Colors.grey,
+                              ),
+                              prefixIcon: Icon(
+                                Icons.search,
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
-                        ],
-                      ),
-                    ),
-                  )
-                else if (_error != null)
-                  Expanded(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.error_outline,
-                              color: Colors.redAccent,
-                              size: 48,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              ar
-                                  ? 'حدث خطأ في تحميل الملاعب'
-                                  : 'Error loading fields',
-                              style: const TextStyle(
-                                color: Colors.red,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              _error!,
-                              style: TextStyle(
-                                color: theme.textTheme.bodyMedium?.color,
-                                fontSize: 14,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 20),
-                            ElevatedButton(
-                              onPressed: _loadFields,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: theme.colorScheme.primary,
-                              ),
-                              child: Text(ar ? 'إعادة المحاولة' : 'Retry'),
-                            ),
-                          ],
                         ),
-                      ),
-                    ),
-                  )
-                else if (_filteredFields.isEmpty)
-                  Expanded(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.stadium_outlined,
-                              color:
-                                  theme.textTheme.bodyMedium?.color
-                                      ?.withOpacity(0.5) ??
-                                  Colors.white54,
-                              size: 64,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchCtrl.text.isEmpty
-                                  ? (ar
-                                        ? 'لا توجد ملاعب متاحة'
-                                        : 'No fields available')
-                                  : (ar
-                                        ? 'لم يتم العثور على نتائج'
-                                        : 'No results found'),
-                              style: TextStyle(
-                                color: theme.textTheme.bodyMedium?.color,
-                                fontSize: 16,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                            if (_searchCtrl.text.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Text(
-                                  ar
-                                      ? 'حاول البحث بكلمات أخرى'
-                                      : 'Try searching with different keywords',
-                                  style: TextStyle(
-                                    color:
-                                        theme.textTheme.bodyMedium?.color
-                                            ?.withOpacity(0.7) ??
-                                        Colors.grey,
-                                    fontSize: 14,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ),
-                          ],
+                        SizedBox(width: screenWidth * 0.03),
+                        IconButton(
+                          onPressed: _onSort,
+                          icon: Icon(
+                            Icons.sort,
+                            color: theme.textTheme.bodyMedium?.color,
+                          ),
+                          tooltip: ar ? 'ترتيب حسب الاسم' : 'Sort by name',
                         ),
-                      ),
-                    ),
-                  )
-                else
-                  /* --------------- Fields list --------------- */
-                  Expanded(
-                    child: RefreshIndicator(
-                      onRefresh: _loadFields,
-                      color: theme.colorScheme.primary,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: _filteredFields.length,
-                        itemBuilder: (_, i) =>
-                            _fieldCard(context, _filteredFields[i], ar),
-                      ),
+                      ],
                     ),
                   ),
-              ],
+
+                  /* --------------- Loading/Error States --------------- */
+                  if (_isLoading)
+                    Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              color: theme.colorScheme.primary,
+                            ),
+                            SizedBox(height: screenHeight * 0.02),
+                            Text(
+                              ar ? 'جاري تحميل الملاعب...' : 'Loading fields...',
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else if (_error != null)
+                    Expanded(
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(screenWidth * 0.05),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.redAccent,
+                                size: 48,
+                              ),
+                              SizedBox(height: screenHeight * 0.02),
+                              Text(
+                                ar
+                                    ? 'حدث خطأ في تحميل الملاعب'
+                                    : 'Error loading fields',
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: screenHeight * 0.01),
+                              Text(
+                                _error!,
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyMedium?.color,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: screenHeight * 0.025),
+                              ElevatedButton(
+                                onPressed: _loadFields,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.primary,
+                                ),
+                                child: Text(ar ? 'إعادة المحاولة' : 'Retry'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else if (_filteredFields.isEmpty)
+                    Expanded(
+                      child: Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(screenWidth * 0.05),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.stadium_outlined,
+                                color:
+                                    theme.textTheme.bodyMedium?.color
+                                        ?.withOpacity(0.5) ??
+                                    Colors.white54,
+                                size: 64,
+                              ),
+                              SizedBox(height: screenHeight * 0.02),
+                              Text(
+                                _searchCtrl.text.isEmpty
+                                    ? (ar
+                                        ? 'لا توجد ملاعب متاحة'
+                                        : 'No fields available')
+                                    : (ar
+                                        ? 'لم يتم العثور على نتائج'
+                                        : 'No results found'),
+                                style: TextStyle(
+                                  color: theme.textTheme.bodyMedium?.color,
+                                  fontSize: 16,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              if (_searchCtrl.text.isNotEmpty)
+                                Padding(
+                                  padding: EdgeInsets.only(top: screenHeight * 0.01),
+                                  child: Text(
+                                    ar
+                                        ? 'حاول البحث بكلمات أخرى'
+                                        : 'Try searching with different keywords',
+                                    style: TextStyle(
+                                      color:
+                                          theme.textTheme.bodyMedium?.color
+                                              ?.withOpacity(0.7) ??
+                                              Colors.grey,
+                                      fontSize: 14,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    /* --------------- Fields list --------------- */
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: _loadFields,
+                        color: theme.colorScheme.primary,
+                        child: ListView.builder(
+                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                          itemCount: _filteredFields.length,
+                          itemBuilder: (_, i) =>
+                              _fieldCard(context, _filteredFields[i], ar),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
 
             /* -------------------- Add Field Button ------------------------ */
@@ -436,6 +458,9 @@ class _FieldsScreenState extends State<FieldsScreen> {
      Single field card
      ===============================================================*/
   Widget _fieldCard(BuildContext context, Map<String, dynamic> f, bool ar) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return GestureDetector(
       onTap: () {
         // Check if user is guest before navigating
@@ -465,8 +490,8 @@ class _FieldsScreenState extends State<FieldsScreen> {
               : (ar ? 'لا توجد مرافق' : 'No amenities');
 
           return Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(16),
+            margin: EdgeInsets.only(bottom: screenWidth * 0.04),
+            padding: EdgeInsets.all(screenWidth * 0.04),
             decoration: BoxDecoration(
               color: theme.cardColor,
               borderRadius: BorderRadius.circular(16),
@@ -475,7 +500,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
             child: Row(
               children: [
                 _fieldImage(f),
-                const SizedBox(width: 12),
+                SizedBox(width: screenWidth * 0.03),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -496,9 +521,9 @@ class _FieldsScreenState extends State<FieldsScreen> {
                             ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: screenWidth * 0.02,
+                              vertical: screenWidth * 0.005,
                             ),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primary.withOpacity(0.2),
@@ -515,7 +540,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: screenHeight * 0.005),
                       Text(
                         f['location'] ?? 'No Location',
                         style: GoogleFonts.spaceGrotesk(
@@ -525,7 +550,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: screenHeight * 0.005),
                       if (f['surface'] != null)
                         Row(
                           children: [
@@ -534,43 +559,43 @@ class _FieldsScreenState extends State<FieldsScreen> {
                               color:
                                   theme.textTheme.titleMedium?.color
                                       ?.withOpacity(0.7) ??
-                                  Colors.grey,
+                                      Colors.grey,
                               size: 14,
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: screenWidth * 0.01),
                             Text(
                               f['surface'].toString(),
                               style: GoogleFonts.spaceGrotesk(
                                 color:
                                     theme.textTheme.titleMedium?.color
                                         ?.withOpacity(0.7) ??
-                                    Colors.grey,
+                                        Colors.grey,
                                 fontSize: 12,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: screenWidth * 0.02),
                             Icon(
                               Icons.people,
                               color:
                                   theme.textTheme.titleMedium?.color
                                       ?.withOpacity(0.7) ??
-                                  Colors.grey,
+                                      Colors.grey,
                               size: 14,
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: screenWidth * 0.01),
                             Text(
                               '${f['capacity'] ?? 0} ${ar ? 'شخص' : 'people'}',
                               style: GoogleFonts.spaceGrotesk(
                                 color:
                                     theme.textTheme.titleMedium?.color
                                         ?.withOpacity(0.7) ??
-                                    Colors.grey,
+                                        Colors.grey,
                                 fontSize: 12,
                               ),
                             ),
                           ],
                         ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: screenHeight * 0.005),
                       if (amenitiesText.isNotEmpty)
                         Text(
                           amenitiesText,
@@ -597,3 +622,4 @@ class _FieldsScreenState extends State<FieldsScreen> {
     );
   }
 }
+

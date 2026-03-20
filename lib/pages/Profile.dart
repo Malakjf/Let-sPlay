@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_permission.dart' show UserPermission;
 import '../services/language.dart';
+import '../services/guest_service.dart';
 import '../models/player.dart';
 import '../widgets/FutCardFull.dart';
 import '../widgets/FutCardResponsive.dart';
@@ -95,7 +96,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .doc(userId)
               .snapshots(),
           builder: (context, snapshot) {
-            final data = snapshot.hasData ? snapshot.data!.data() : null;
+            // Handle error state - show friendly error instead of infinite loading
+            if (snapshot.hasError) {
+              final errorString = snapshot.error.toString();
+              final isPermissionDenied = errorString.contains('permission-denied') || 
+                                         errorString.contains('PERMISSION_DENIED');
+              
+              // For permission denied (guest), show limited profile with login prompt
+              if (isPermissionDenied) {
+                return _buildLimitedProfile(context, ar, theme, userId);
+              }
+              
+              // For other errors, show error message
+              return _buildErrorState(context, ar, theme, errorString);
+            }
+
+            // Handle loading state
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _buildLoadingState(ar, theme);
+            }
+
+            // Handle no data (empty)
+            if (!snapshot.hasData || snapshot.data == null) {
+              return _buildEmptyState(context, ar, theme, userId);
+            }
+
+            final data = snapshot.data!.data();
 
             final name =
                 data?['name'] ?? data?['username'] ?? widget.player.name;
@@ -384,35 +410,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
           ar ? 'تفاصيل الملف' : 'Profile Details',
           Icons.person,
-          () => Navigator.pushNamed(context, '/profileDetails'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/profileDetails');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'الإعدادات' : 'Settings',
           Icons.settings,
-          () => Navigator.pushNamed(context, '/settings'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/settings');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'اللاعبين' : 'Players',
           Icons.group,
-          () => Navigator.pushNamed(context, '/players'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/players');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'التنظيم' : 'Organization',
           Icons.business,
-          () => Navigator.pushNamed(context, '/organization'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/organization');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'الإدارة' : 'Management',
           Icons.dashboard,
-          () => Navigator.pushNamed(context, '/management'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/management');
+          },
         ),
       ],
     );
@@ -429,21 +470,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
           ar ? 'تفاصيل الملف' : 'Profile Details',
           Icons.person,
-          () => Navigator.pushNamed(context, '/profileDetails'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/profileDetails');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'الإعدادات' : 'Settings',
           Icons.settings,
-          () => Navigator.pushNamed(context, '/settings'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/settings');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'المنظمة' : 'Organization',
           Icons.business,
-          () => Navigator.pushNamed(context, '/organization'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/organization');
+          },
         ),
       ],
     );
@@ -456,21 +506,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
           ar ? 'تفاصيل الملف' : 'Profile Details',
           Icons.person,
-          () => Navigator.pushNamed(context, '/profileDetails'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/profileDetails');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'الإعدادات' : 'Settings',
           Icons.settings,
-          () => Navigator.pushNamed(context, '/settings'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/settings');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'اللاعبين' : 'Players',
           Icons.group,
-          () => Navigator.pushNamed(context, '/players'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/players');
+          },
         ),
       ],
     );
@@ -483,14 +542,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
           ar ? 'تفاصيل الملف' : 'Profile Details',
           Icons.person,
-          () => Navigator.pushNamed(context, '/profileDetails'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/profileDetails');
+          },
         ),
         const SizedBox(height: 12),
         _buildActionButton(
           context,
           ar ? 'الإعدادات' : 'Settings',
           Icons.settings,
-          () => Navigator.pushNamed(context, '/settings'),
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.pushNamed(context, '/settings');
+          },
         ),
       ],
     );
@@ -579,6 +644,174 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
         text: ar ? 'تسجيل الخروج' : 'Logout',
         icon: Icons.logout,
+      ),
+    );
+  }
+
+  // ===============================================================
+  // Helper methods for handling StreamBuilder states
+  // ===============================================================
+
+  /// Build loading state widget
+  Widget _buildLoadingState(bool ar, ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: theme.colorScheme.primary),
+          const SizedBox(height: 16),
+          Text(
+            ar ? 'جاري التحميل...' : 'Loading...',
+            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build error state widget with retry option
+  Widget _buildErrorState(BuildContext context, bool ar, ThemeData theme, String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, color: theme.colorScheme.error, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              ar ? 'حدث خطأ' : 'Error occurred',
+              style: TextStyle(
+                color: theme.colorScheme.error,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              ar ? 'يرجى المحاولة مرة أخرى' : 'Please try again',
+              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                // Trigger rebuild to retry
+                setState(() {});
+              },
+              child: Text(ar ? 'إعادة المحاولة' : 'Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Build empty state widget
+  Widget _buildEmptyState(BuildContext context, bool ar, ThemeData theme, String userId) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.person_outline, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5), size: 64),
+          const SizedBox(height: 16),
+          Text(
+            ar ? 'لا توجد بيانات' : 'No data available',
+            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build limited profile for guest users (permission denied)
+  Widget _buildLimitedProfile(BuildContext context, bool ar, ThemeData theme, String userId) {
+    return Directionality(
+      textDirection: ar ? TextDirection.rtl : TextDirection.ltr,
+      child: Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            key: PageStorageKey('profile_scroll_$userId'),
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Column(
+              children: [
+                // Header with LogoButton
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Center(
+                        child: Text(
+                          ar ? 'الملف الشخصي' : 'PROFILE',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const Positioned(right: 0, child: LogoButton()),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Guest user message
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.lock_outline,
+                        size: 64,
+                        color: theme.colorScheme.primary.withOpacity(0.7),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        ar ? 'تسجيل الدخول مطلوب' : 'Login Required',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        ar 
+                          ? 'يرجى تسجيل الدخول للوصول إلى ملفات اللاعبين والمميزات الكاملة'
+                          : 'Please login to access player profiles and full features',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.pushNamed(context, '/login'),
+                        icon: const Icon(Icons.login),
+                        label: Text(ar ? 'تسجيل الدخول' : 'Login'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

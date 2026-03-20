@@ -62,6 +62,14 @@ class PlayerStatsStore extends ChangeNotifier {
     try {
       debugPrint('📊 PlayerStatsStore: Initializing for match $matchId');
 
+      // Cleanup previous match data to prevent leaks/collisions
+      _stats.clear();
+      final matchSubKeys = _subscriptions.keys.where((k) => k.startsWith('match_')).toList();
+      for (final key in matchSubKeys) {
+        await _subscriptions[key]?.cancel();
+        _subscriptions.remove(key);
+      }
+
       // Fetch match data
       final matchDoc = await _firestore
           .collection('matches')
@@ -70,7 +78,8 @@ class PlayerStatsStore extends ChangeNotifier {
 
       if (!matchDoc.exists) return;
 
-      final playerIds = List<String>.from(matchDoc['players'] ?? []);
+      final data = matchDoc.data();
+      final playerIds = List<String>.from(data?['players'] ?? []);
       debugPrint('👥 Found ${playerIds.length} players');
 
       // Initialize each player with zero stats
@@ -284,6 +293,7 @@ class PlayerStatsStore extends ChangeNotifier {
 
     // Set new timer
     _debounceTimers[playerId] = Timer(const Duration(milliseconds: 500), () {
+      _debounceTimers.remove(playerId);
       _saveToFirestore(matchId, playerId);
     });
   }
@@ -318,6 +328,7 @@ class PlayerStatsStore extends ChangeNotifier {
     // Debounce user sync to avoid spamming user doc
     _userSyncTimers[playerId]?.cancel();
     _userSyncTimers[playerId] = Timer(const Duration(milliseconds: 1000), () {
+      _userSyncTimers.remove(playerId);
       _flushUserStats(playerId);
     });
   }
@@ -357,6 +368,12 @@ class PlayerStatsStore extends ChangeNotifier {
       debugPrint('❌ Failed to sync user stats: $e');
       // Restore pending deltas on failure?
       // For now, we log. In prod, might want retry logic.
+      // Restore pending deltas on failure
+      final current = _pendingDeltas[playerId] ?? {};
+      updatesToApply.forEach((k, v) {
+        current[k] = (current[k] ?? 0) + v;
+      });
+      _pendingDeltas[playerId] = current;
     }
   }
 

@@ -229,26 +229,23 @@ class SplashPage extends StatelessWidget {
     return FootballSplashAnimation(
       appName: 'LetsPlay',
       onComplete: () {
-        // 1. Get dependencies (LocaleController)
-        final localeCtrl = Provider.of<LocaleController>(
-          context,
-          listen: false,
-        );
-
-        // 2. Check Auth State (Firebase)
+        // 1. Check Auth State (Firebase)
+        // We check current user synchronously here.
+        // Since this runs after the animation (approx 2-3s), auth state should be ready.
         final user = FirebaseAuth.instance.currentUser;
+        
+        // 2. Get dependencies
+        final localeCtrl = Provider.of<LocaleController>(context, listen: false);
 
         // 3. Navigate based on Auth State
         if (user != null) {
           // User is logged in -> Go to Home (MainLayout)
-          Navigator.pushReplacement(
-            context,
+          Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => MainLayout(ctrl: localeCtrl)),
           );
         } else {
           // User is NOT logged in -> Go to Login (WelcomePage)
-          Navigator.pushReplacement(
-            context,
+          Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (_) => WelcomePage(ctrl: localeCtrl)),
           );
         }

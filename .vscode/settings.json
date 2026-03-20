@@ -1,4 +1,11 @@
 {
-    "cmake.sourceDirectory": "C:/letsplay/linux",
-    "task.autoDetect": "off"
+  "task.autoDetect": "off",
+  "dart.flutterSdkPath": "/Users/hello/Desktop/flutter",
+  "dart.openDevTools": "flutter",
+  "dart.debugExternalConsoleLibraries": true,
+  "dart.evaluateGettersInDebugViews": true,
+  "dart.buildRunnerArgs": [
+    "--delete-conflicting-outputs"
+  ]
 }
+

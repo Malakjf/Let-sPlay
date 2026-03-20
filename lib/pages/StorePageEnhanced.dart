@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../models/product.dart';
 import '../services/product_repository.dart';
 import '../services/language.dart';
+import '../services/guest_service.dart';
 import '../widgets/GlassContainer.dart';
 import 'ProductEditPage.dart';
 import '../services/firebase_service.dart';
@@ -58,8 +59,11 @@ class _StorePageEnhancedState extends State<StorePageEnhanced> {
       }
     } catch (e) {
       debugPrint('❌ Error loading products: $e');
+      
       if (mounted) {
         setState(() {
+          // Show empty list when error occurs
+          _products = [];
           _isLoading = false;
         });
       }
@@ -257,17 +261,23 @@ class _StorePageEnhancedState extends State<StorePageEnhanced> {
 
   Widget _buildProductCard(Product product, ThemeData theme, bool ar) {
     return GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(
+      onTap: () {
+        // Check if user is guest before navigating - redirect to login if guest
+        if (!GuestService.handleGuestInteraction(context, ar)) {
+          return; // Guest user - blocked, already redirected to login
+        }
+        // Navigate to product details or edit
+        Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) =>
                 ProductEditPage(ctrl: widget.ctrl, product: product),
           ),
-        );
-        if (result == true) {
-          _loadProducts();
-        }
+        ).then((result) {
+          if (result == true) {
+            _loadProducts();
+          }
+        });
       },
       child: GlassContainer(
         child: Column(
@@ -387,17 +397,22 @@ class _StorePageEnhancedState extends State<StorePageEnhanced> {
             if (_userPermission == UserPermission.admin) ...[
               IconButton(
                 icon: const Icon(Icons.edit),
-                onPressed: () async {
-                  final result = await Navigator.push(
+                onPressed: () {
+                  // Check if user is guest - redirect to login if guest
+                  if (!GuestService.handleGuestInteraction(context, ar)) {
+                    return; // Guest user - blocked, already redirected to login
+                  }
+                  Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
                           ProductEditPage(ctrl: widget.ctrl, product: product),
                     ),
-                  );
-                  if (result == true) {
-                    _loadProducts();
-                  }
+                  ).then((result) {
+                    if (result == true) {
+                      _loadProducts();
+                    }
+                  });
                 },
               ),
               IconButton(
@@ -408,6 +423,23 @@ class _StorePageEnhancedState extends State<StorePageEnhanced> {
             ],
           ],
         ),
+        onTap: () {
+          // Check if user is guest - redirect to login if guest
+          if (!GuestService.handleGuestInteraction(context, ar)) {
+            return; // Guest user - blocked, already redirected to login
+          }
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  ProductEditPage(ctrl: widget.ctrl, product: product),
+            ),
+          ).then((result) {
+            if (result == true) {
+              _loadProducts();
+            }
+          });
+        },
       ),
     );
   }

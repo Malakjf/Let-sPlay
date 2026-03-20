@@ -36,7 +36,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
   late TextEditingController _dobController;
   late TextEditingController _cityController;
   late TextEditingController _areaController;
-  late TextEditingController _postalCodeController;
+  //late TextEditingController _postalCodeController;
   late TextEditingController _clubController;
   late TextEditingController _walletController;
 
@@ -106,7 +106,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
     _dobController = TextEditingController();
     _cityController = TextEditingController();
     _areaController = TextEditingController();
-    _postalCodeController = TextEditingController();
+    // = TextEditingController();
     _clubController = TextEditingController();
     _walletController = TextEditingController();
     _loadUserData();
@@ -120,7 +120,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
     _dobController.dispose();
     _cityController.dispose();
     _areaController.dispose();
-    _postalCodeController.dispose();
+   // _postalCodeController.dispose();
     _clubController.dispose();
     _walletController.dispose();
     super.dispose();
@@ -157,7 +157,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
             _dobController.text = data['dateOfBirth'] ?? data['dob'] ?? '';
             _cityController.text = data['city'] ?? '';
             _areaController.text = data['area'] ?? '';
-            _postalCodeController.text = data['postalCode'] ?? '';
+           // _postalCodeController.text = data['postalCode'] ?? '';
             _clubController.text = data['club'] ?? '';
             // Wallet uses walletCredit field from Firebase
             final walletValue = data['walletCredit'] ?? data['wallet'] ?? 0;
@@ -306,7 +306,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
           'dateOfBirth': _dobController.text.trim(),
           'city': _cityController.text.trim(),
           'area': _areaController.text.trim(),
-          'postalCode': _postalCodeController.text.trim(),
+          //'postalCode': _postalCodeController.text.trim(),
           'gender': _selectedGender ?? 'Not specified',
           'position': _selectedPosition ?? '', // Save position field
           'possession':
@@ -1051,14 +1051,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
                                 enabled: _isEditing,
                               ),
 
-                              // Postal Code
-                              _buildTextField(
-                                controller: _postalCodeController,
-                                label: ar ? 'الرمز البريدي' : 'Postal Code',
-                                enabled: _isEditing,
-                                keyboardType: TextInputType.number,
-                              ),
-
+                            
                               // Role (read-only)
                               _buildReadOnlyField(
                                 label: ar ? 'الدور' : 'Role',
@@ -1066,7 +1059,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
                               ),
 
                               // Player Stats (read-only)
-                              if (!_isEditing && _userData!['role'] == 'Player')
+                              if (!_isEditing)
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [

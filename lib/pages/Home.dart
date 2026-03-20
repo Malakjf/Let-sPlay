@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,6 +32,7 @@ class _HomeScreenState extends State<HomeScreen> {
   UserPermission _userPermission = UserPermission.player;
   DateTime _calendarFocusedDay = DateTime.now();
   DateTime? _calendarSelectedDay;
+  bool _isJoiningMatch = false; // Add loading state for join button
 
   @override
   void initState() {
@@ -38,7 +40,18 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadUserData();
     _loadUnreadNotificationsCount();
     _loadJoinedMatches();
-    // Load matches from Firestore
+    // Load matches from Firestore - only if user is logged in
+    _loadMatchesIfAuthenticated();
+  }
+
+  /// 🔒 Load matches only if user is authenticated
+  Future<void> _loadMatchesIfAuthenticated() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('⚠️ Guest mode - skipping loadMatchesFromFirestore');
+      return;
+    }
+    // User is authenticated, load matches
     MatchesService().loadMatchesFromFirestore();
   }
 
@@ -70,6 +83,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadUnreadNotificationsCount() async {
+    // 🔒 GUARD: Don't load notifications if no user is logged in
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('⚠️ Guest mode - skipping notifications load');
+      return;
+    }
+    
     try {
       final notifications = await NotificationService().getNotifications();
       final unreadCount = notifications
@@ -174,6 +194,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen size for responsive design
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    final screenHeight = screenSize.height;
+    
+    // Calculate responsive values
+    final horizontalPadding = screenWidth * 0.05; // 5% of screen width
+    final verticalPadding = screenHeight * 0.02; // 2% of screen height
+    final titleFontSize = screenWidth > 600 ? 24.0 : 20.0;
+    final avatarRadius = screenWidth > 600 ? 24.0 : 20.0;
+    
     return AnimatedBuilder(
       animation: Listenable.merge([widget.ctrl, MatchesService()]),
       builder: (context, child) {
@@ -203,205 +234,222 @@ class _HomeScreenState extends State<HomeScreen> {
             delegates: const [DefaultMaterialLocalizations.delegate],
             child: Scaffold(
               backgroundColor: theme.scaffoldBackgroundColor,
-              body: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header section (moved from AppBar)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Flexible(
-                            child: Row(
-                              children: [
-                                CircleAvatar(
-                                  radius: 20,
-                                  backgroundColor: theme.colorScheme.primary
-                                      .withOpacity(0.2),
-                                  backgroundImage:
-                                      _profilePicUrl != null &&
-                                          _profilePicUrl!.isNotEmpty
-                                      ? NetworkImage(
-                                          _profilePicUrl!.contains('?')
-                                              ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
-                                              : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
-                                        )
-                                      : null,
-                                  onBackgroundImageError:
-                                      _profilePicUrl != null &&
-                                          _profilePicUrl!.isNotEmpty
-                                      ? (exception, stackTrace) {
-                                          debugPrint(
-                                            '❌ Avatar load error: $exception',
-                                          );
-                                        }
-                                      : null,
-                                  child:
-                                      _profilePicUrl == null ||
-                                          _profilePicUrl!.isEmpty
-                                      ? Text(
-                                          _username.isNotEmpty
-                                              ? _username
-                                                    .substring(0, 1)
-                                                    .toUpperCase()
-                                              : 'U',
-                                          style: TextStyle(
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        )
-                                      : null,
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    '${_welcome(ar)} $_username',
-                                    style: GoogleFonts.spaceGrotesk(
-                                      color:
-                                          theme.textTheme.displayLarge?.color ??
-                                          Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+              body: SafeArea(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: verticalPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header section (moved from AppBar)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          bottom: screenHeight * 0.015,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: avatarRadius,
+                                    backgroundColor: theme.colorScheme.primary
+                                        .withOpacity(0.2),
+                                    backgroundImage:
+                                        _profilePicUrl != null &&
+                                            _profilePicUrl!.isNotEmpty
+                                            ? NetworkImage(
+                                                _profilePicUrl!.contains('?')
+                                                    ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
+                                                    : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
+                                              )
+                                            : null,
+                                    onBackgroundImageError:
+                                        _profilePicUrl != null &&
+                                            _profilePicUrl!.isNotEmpty
+                                            ? (exception, stackTrace) {
+                                                debugPrint(
+                                                  '❌ Avatar load error: $exception',
+                                                );
+                                              }
+                                            : null,
+                                    child:
+                                        _profilePicUrl == null ||
+                                            _profilePicUrl!.isEmpty
+                                            ? Text(
+                                                _username.isNotEmpty
+                                                    ? _username
+                                                          .substring(0, 1)
+                                                          .toUpperCase()
+                                                    : 'U',
+                                                style: TextStyle(
+                                                  color: theme.colorScheme.primary,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: MediaQuery.textScaleFactorOf(context) * 16,
+                                                ),
+                                              )
+                                            : null,
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: Stack(
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_none,
-                                      color: theme.textTheme.bodyMedium?.color,
+                                  SizedBox(width: screenWidth * 0.025),
+                                  Expanded(
+                                    child: Text(
+                                      '${_welcome(ar)} $_username',
+                                      style: GoogleFonts.spaceGrotesk(
+                                        color:
+                                            theme.textTheme.displayLarge?.color ??
+                                            Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: titleFontSize,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    if (_unreadNotificationsCount > 0)
-                                      Positioned(
-                                        right: 0,
-                                        top: 0,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red,
-                                            borderRadius: BorderRadius.circular(
-                                              10,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: Stack(
+                                    children: [
+                                      Icon(
+                                        Icons.notifications_none,
+                                        color: theme.textTheme.bodyMedium?.color,
+                                        size: screenWidth > 600 ? 28 : 24,
+                                      ),
+                                      if (_unreadNotificationsCount > 0)
+                                        Positioned(
+                                          right: 0,
+                                          top: 0,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(2),
+                                            decoration: BoxDecoration(
+                                              color: Colors.red,
+                                              borderRadius: BorderRadius.circular(
+                                                10,
+                                              ),
                                             ),
-                                          ),
-                                          constraints: const BoxConstraints(
-                                            minWidth: 16,
-                                            minHeight: 16,
-                                          ),
-                                          child: Text(
-                                            _unreadNotificationsCount
-                                                .toString(),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
+                                            constraints: const BoxConstraints(
+                                              minWidth: 16,
+                                              minHeight: 16,
                                             ),
-                                            textAlign: TextAlign.center,
+                                            child: Text(
+                                              _unreadNotificationsCount
+                                                  .toString(),
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: MediaQuery.textScaleFactorOf(context) * 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                  ],
+                                    ],
+                                  ),
+                                  onPressed: () {
+                                    // Check if user is guest before accessing notifications
+                                    if (!GuestService.handleGuestInteraction(
+                                      context,
+                                      ar,
+                                    )) {
+                                      return; // Guest user - blocked
+                                    }
+                                    Navigator.pushNamed(
+                                      context,
+                                      '/notifications',
+                                    ).then(
+                                      (_) => _loadUnreadNotificationsCount(),
+                                    );
+                                  },
                                 ),
-                                onPressed: () {
-                                  // Check if user is guest before accessing notifications
-                                  if (!GuestService.handleGuestInteraction(
-                                    context,
-                                    ar,
-                                  )) {
-                                    return; // Guest user - blocked
-                                  }
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/notifications',
-                                  ).then(
-                                    (_) => _loadUnreadNotificationsCount(),
-                                  );
-                                },
-                              ),
-                              const LogoButton(),
-                            ],
-                          ),
-                        ],
+                                const LogoButton(),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    _calendar(context, ar),
-                    // Your Matches Section (ALL joined matches)
-                    if (_allJoinedMatches.isNotEmpty) ...[
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            ar ? 'مبارياتك' : 'Your Matches',
-                            style: GoogleFonts.spaceGrotesk(
-                              color:
-                                  theme.textTheme.displayLarge?.color ??
-                                  Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              '${_allJoinedMatches.length}',
-                              style: TextStyle(
-                                color: theme.colorScheme.primary,
+                      _calendar(context, ar, screenWidth, screenHeight),
+                      SizedBox(height: screenHeight * 0.03), // Clean spacing to matches section
+                      // Your Matches Section (ALL joined matches)
+                      if (_allJoinedMatches.isNotEmpty) ...[
+                        SizedBox(height: screenHeight * 0.025),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              ar ? 'مبارياتك' : 'Your Matches',
+                              style: GoogleFonts.spaceGrotesk(
+                                color:
+                                    theme.textTheme.displayLarge?.color ??
+                                    Colors.white,
+                                fontSize: titleFontSize,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                          ),
-                        ],
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: screenWidth * 0.03,
+                                vertical: screenHeight * 0.005,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_allJoinedMatches.length}',
+                                style: TextStyle(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: MediaQuery.textScaleFactorOf(context) * 14,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: screenHeight * 0.015),
+                        // Show ALL joined matches grouped by date
+                        ..._buildGroupedMatchesSection(
+                          context,
+                          ar,
+                          _allJoinedMatches,
+                          theme,
+                          screenWidth,
+                          screenHeight,
+                          isJoinedSection: true,
+                        ),
+                      ],
+                      SizedBox(height: screenHeight * 0.025),
+                      Text(
+                        _near(ar),
+                        style: GoogleFonts.spaceGrotesk(
+                          color:
+                              theme.textTheme.displayLarge?.color ?? Colors.white,
+                          fontSize: titleFontSize,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const SizedBox(height: 12),
-                      // Show ALL joined matches grouped by date
-                      ..._buildGroupedMatchesSection(
-                        context,
-                        ar,
-                        _allJoinedMatches,
-                        theme,
-                        isJoinedSection: true,
-                      ),
+                      SizedBox(height: screenHeight * 0.015),
+                      if (allMatches.isNotEmpty) ...[
+                        ..._buildGroupedMatchesSection(
+                          context,
+                          ar,
+                          allMatches,
+                          theme,
+                          screenWidth,
+                          screenHeight,
+                          isJoinedSection: false,
+                        ),
+                      ] else ...[
+                        _noMatchesCard(context, ar, screenWidth, screenHeight),
+                      ],
+                      // Bottom padding for safe area
+                      SizedBox(height: screenHeight * 0.02),
                     ],
-                    const SizedBox(height: 20),
-                    Text(
-                      _near(ar),
-                      style: GoogleFonts.spaceGrotesk(
-                        color:
-                            theme.textTheme.displayLarge?.color ?? Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (allMatches.isNotEmpty) ...[
-                      ..._buildGroupedMatchesSection(
-                        context,
-                        ar,
-                        allMatches,
-                        theme,
-                        isJoinedSection: false,
-                      ),
-                    ] else ...[
-                      _noMatchesCard(context, ar),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -446,29 +494,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year} at $hour:$minute $amPm';
   }
 
-  /// Helper to format date header (YYYY-MM-DD only)
+  /// Helper to format date header (e.g., Sunday, March 15, 2026)
   String _formatDateHeader(dynamic date) {
     if (date == null) return '';
 
     final dateTime = parseFirestoreDate(date);
     if (dateTime.millisecondsSinceEpoch == 0) return date.toString();
 
-    final months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-
-    return '${months[dateTime.month - 1]} ${dateTime.day}, ${dateTime.year}';
+    // Use DateFormat for robust and localized formatting
+    // 'EEEE, MMMM d, y' -> Sunday, March 15, 2026
+    return DateFormat('EEEE, MMMM d, y').format(dateTime);
   }
 
   /// Helper to group matches by date (YYYY-MM-DD)
@@ -510,11 +545,17 @@ class _HomeScreenState extends State<HomeScreen> {
     BuildContext context,
     bool ar,
     List<Map<String, dynamic>> matches,
-    ThemeData theme, {
+    ThemeData theme,
+    double screenWidth,
+    double screenHeight, {
     required bool isJoinedSection,
   }) {
     final groupedMatches = _groupMatchesByDate(matches);
     final widgets = <Widget>[];
+    
+    // Responsive values
+    final headerFontSize = screenWidth > 600 ? 20.0 : 18.0;
+    final cardMarginBottom = screenHeight * 0.025;
 
     for (final dateKey in groupedMatches.keys) {
       final matchesOnDate = groupedMatches[dateKey]!;
@@ -523,12 +564,12 @@ class _HomeScreenState extends State<HomeScreen> {
       // Date Header
       widgets.add(
         Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: EdgeInsets.only(bottom: screenHeight * 0.015),
           child: Text(
             _formatDateHeader(firstMatch['date']),
             style: GoogleFonts.spaceGrotesk(
               color: theme.textTheme.displayLarge?.color ?? Colors.white,
-              fontSize: 18,
+              fontSize: headerFontSize,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -539,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
       widgets.addAll(
         matchesOnDate.map((match) {
           return Container(
-            margin: const EdgeInsets.only(bottom: 20),
+            margin: EdgeInsets.only(bottom: cardMarginBottom),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
@@ -559,6 +600,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ar,
                       match,
                       theme,
+                      screenWidth,
+                      screenHeight,
                       isJoined: true,
                     )
                   : _buildGroupedMatchCard(
@@ -566,6 +609,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ar,
                       match,
                       theme,
+                      screenWidth,
+                      screenHeight,
                       isJoined: false,
                     ),
             ),
@@ -582,38 +627,53 @@ class _HomeScreenState extends State<HomeScreen> {
     BuildContext context,
     bool ar,
     Map<String, dynamic> match,
-    ThemeData theme, {
+    ThemeData theme,
+    double screenWidth,
+    double screenHeight, {
     required bool isJoined,
   }) {
     if (isJoined) {
-      return _buildNextMatchCard(context, ar, match, theme);
+      return _buildNextMatchCard(context, ar, match, theme, screenWidth, screenHeight);
     } else {
-      return _nearCard(context, ar, match);
+      return _nearCard(context, ar, match, screenWidth, screenHeight);
     }
   }
 
   /* ---------- calendar widget ---------- */
-  Widget _calendar(BuildContext context, bool ar) {
+  Widget _calendar(BuildContext context, bool ar, double screenWidth, double screenHeight) {
     final theme = Theme.of(context);
     final matchesService = MatchesService();
     final allMatches = matchesService.matches;
+    
+    // Responsive sizing for calendar
+    final rowHeight = screenHeight * 0.055; // ~44px responsive
+    final headerFontSize = screenWidth > 600 ? 18.0 : 16.0;
+    final dayFontSize = screenWidth > 600 ? 14.0 : 12.0;
+    
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(screenWidth * 0.04),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.surface.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.12),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: TableCalendar(
-        firstDay: DateTime.utc(2020, 1, 1),
-        lastDay: DateTime.utc(2030, 12, 31),
-        focusedDay: _calendarFocusedDay,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: screenHeight * 0.42,
+        ),
+        child: TableCalendar(
+          firstDay: DateTime.utc(2020, 1, 1),
+          lastDay: DateTime.utc(2030, 12, 31),
+          focusedDay: _calendarFocusedDay,
+          calendarFormat: CalendarFormat.month,
+          sixWeekMonthsEnforced: true,
+        rowHeight: rowHeight,
         selectedDayPredicate: (d) => isSameDay(_calendarSelectedDay, d),
         onDaySelected: (s, f) => setState(() {
           _calendarSelectedDay = s;
@@ -636,76 +696,112 @@ class _HomeScreenState extends State<HomeScreen> {
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, date, events) {
             if (events.isEmpty) return null;
-
+            final eventCount = events.length;
             return Positioned(
-              bottom: 4,
+              bottom: 2,
+              right: 2,
               child: Container(
-                width: 6,
-                height: 6,
+                padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: theme.colorScheme.primary,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.sports_soccer,
-                    size: 14,
-                    color: Colors.white,
+                  gradient: LinearGradient(
+                    colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
                   ),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: theme.colorScheme.primary.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    )
+                  ],
                 ),
-              ),
-            );
-          },
-          singleMarkerBuilder: (context, date, event) {
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 1.5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: theme.colorScheme.primary,
-              ),
-              width: 6,
-              height: 6,
-              child: const Center(
-                child: Icon(Icons.sports_soccer, size: 12, color: Colors.white),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.sports_soccer,
+                      size: 12,
+                      color: Colors.white,
+                    ),
+                    if (eventCount > 1) ...[
+                      const SizedBox(width: 2),
+                      Text(
+                        '${eventCount > 9 ? '9+' : eventCount}',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             );
           },
         ),
         calendarStyle: CalendarStyle(
+          outsideDaysVisible: false,
           todayDecoration: BoxDecoration(
-            color: theme.colorScheme.primary,
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.primary,
+                theme.colorScheme.primary.withOpacity(0.8),
+              ],
+            ),
             shape: BoxShape.circle,
+            border: Border.all(
+              color: theme.colorScheme.primary.withOpacity(0.3),
+              width: 2,
+            ),
           ),
           selectedDecoration: BoxDecoration(
-            color: theme.colorScheme.primary,
+            gradient: LinearGradient(
+              colors: [
+                theme.colorScheme.primary,
+                  theme.colorScheme.secondary.withOpacity(0.7),
+              ],
+            ),
             shape: BoxShape.circle,
           ),
-          defaultTextStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
-          weekendTextStyle: TextStyle(color: theme.textTheme.bodyMedium?.color),
-          markerDecoration: BoxDecoration(
-            color: theme.colorScheme.primary,
-            shape: BoxShape.circle,
+          defaultTextStyle: GoogleFonts.spaceGrotesk(
+            color: theme.textTheme.bodyMedium?.color ?? Colors.white70,
+            fontSize: dayFontSize,
+            fontWeight: FontWeight.w500,
           ),
-          markersMaxCount: 1,
-          markerSize: 6.0,
+          weekendTextStyle: GoogleFonts.spaceGrotesk(
+            color: theme.colorScheme.primary,
+            fontSize: dayFontSize,
+            fontWeight: FontWeight.bold,
+          ),
+          outsideTextStyle: TextStyle(
+            color: Colors.grey.withOpacity(0.3),
+            fontSize: dayFontSize - 1,
+          ),
+          markersMaxCount: 2,
+          markerSize: 8.0,
         ),
         headerStyle: HeaderStyle(
           titleCentered: true,
           formatButtonVisible: false,
-          titleTextStyle: TextStyle(
-            color: theme.textTheme.bodyMedium?.color,
-            fontWeight: FontWeight.bold,
+          titleTextStyle: GoogleFonts.spaceGrotesk(
+            color: theme.textTheme.bodyLarge?.color ?? Colors.white,
+            fontSize: headerFontSize,
+            fontWeight: FontWeight.w700,
           ),
-          leftChevronIcon: Icon(
-            Icons.chevron_left,
-            color: theme.textTheme.bodyMedium?.color,
+          leftChevronIcon: const Icon(
+            Icons.chevron_left_rounded,
+            color: Colors.white70,
+            size: 28,
           ),
-          rightChevronIcon: Icon(
-            Icons.chevron_right,
-            color: theme.textTheme.bodyMedium?.color,
+          rightChevronIcon: const Icon(
+            Icons.chevron_right_rounded,
+            color: Colors.white70,
+            size: 28,
           ),
         ),
       ),
+    )
     );
   }
 
@@ -715,6 +811,8 @@ class _HomeScreenState extends State<HomeScreen> {
     bool ar,
     Map<String, dynamic> match,
     ThemeData theme,
+    double screenWidth,
+    double screenHeight,
   ) {
     final visibility = match['visibility'] as String?;
     final isAcademy = visibility == 'academy';
@@ -733,12 +831,18 @@ class _HomeScreenState extends State<HomeScreen> {
         hasPaid = p['hasPaid'] ?? false;
       }
     }
+    
+    // Responsive values
+    final titleFontSize = screenWidth > 600 ? 18.0 : 16.0;
+    final iconSize = screenWidth > 600 ? 18.0 : 16.0;
+    final horizontalPadding = screenWidth * 0.04;
+    final verticalPadding = screenHeight * 0.02;
 
     return InkWell(
       onTap: () => _navigateToMatchDetails(context, match),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: horizontalPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -751,17 +855,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.textTheme.bodyLarge?.color,
+                      fontSize: titleFontSize,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (isAcademy) ...[
-                  const SizedBox(width: 8),
+                  SizedBox(width: screenWidth * 0.02),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.015,
+                      vertical: screenHeight * 0.003,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.purple.withOpacity(0.1),
@@ -770,8 +875,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Text(
                       ar ? 'أكاديمية' : 'Academy',
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: TextStyle(
+                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                       ),
@@ -779,11 +884,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
                 if (isPrivate) ...[
-                  const SizedBox(width: 8),
+                  SizedBox(width: screenWidth * 0.02),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.015,
+                      vertical: screenHeight * 0.003,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.grey.withOpacity(0.1),
@@ -792,8 +897,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Text(
                       ar ? 'خاص' : 'Private',
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: TextStyle(
+                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
                       ),
@@ -801,9 +906,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: screenWidth * 0.02,
+                    vertical: screenHeight * 0.005,
                   ),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
@@ -817,11 +922,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         size: 14,
                         color: Colors.green,
                       ),
-                      const SizedBox(width: 4),
+                      SizedBox(width: screenWidth * 0.01),
                       Text(
                         ar ? 'انضممت' : 'Joined',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: MediaQuery.textScaleFactorOf(context) * 12,
                           color: Colors.green,
                           fontWeight: FontWeight.w500,
                         ),
@@ -830,41 +935,42 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 if (hasPaid) ...[
-                  const SizedBox(width: 8),
+                  SizedBox(width: screenWidth * 0.02),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.02,
+                      vertical: screenHeight * 0.005,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.green.withOpacity(0.5)),
                     ),
-                    child: const Text('✅', style: TextStyle(fontSize: 12)),
+                    child: Text('✅', style: TextStyle(fontSize: MediaQuery.textScaleFactorOf(context) * 12)),
                   ),
                 ],
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: screenHeight * 0.01),
             // Date
             Text(
               _formatMatchDate(match['date']),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                fontSize: MediaQuery.textScaleFactorOf(context) * 14,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: screenHeight * 0.005),
             // Meta info row
             Row(
               children: [
                 if (match['fieldName'] != null) ...[
                   Icon(
                     Icons.location_on,
-                    size: 16,
+                    size: iconSize,
                     color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: screenWidth * 0.01),
                   Expanded(
                     child: Text(
                       match['fieldName'],
@@ -872,6 +978,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: theme.textTheme.bodySmall?.color?.withOpacity(
                           0.6,
                         ),
+                        fontSize: MediaQuery.textScaleFactorOf(context) * 12,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -880,7 +987,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: screenHeight * 0.015),
             // Players bar and action button
             Row(
               children: [
@@ -892,20 +999,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Icon(
                             Icons.group,
-                            size: 16,
+                            size: iconSize,
                             color: theme.textTheme.bodySmall?.color
                                 ?.withOpacity(0.6),
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(width: screenWidth * 0.01),
                           Text(
                             '${match['playersCount'] ?? 0}/${match['maxPlayers'] ?? 10}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
+                              fontSize: MediaQuery.textScaleFactorOf(context) * 14,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: screenHeight * 0.008),
                       LinearProgressIndicator(
                         value: (match['maxPlayers'] ?? 10) > 0
                             ? (match['playersCount'] ?? 0) /
@@ -921,12 +1029,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: screenWidth * 0.04),
                 ElevatedButton.icon(
                   onPressed: () => _navigateToMatchDetails(context, match),
                   icon: Icon(
                     Icons.info_outline,
-                    size: 18,
+                    size: iconSize,
                     color: Theme.of(context).colorScheme.onPrimary,
                   ),
                   label: Text(ar ? 'عرض التفاصيل' : 'View Details'),
@@ -937,9 +1045,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.035,
+                      vertical: screenHeight * 0.012,
                     ),
                   ),
                 ),
@@ -956,7 +1064,7 @@ class _HomeScreenState extends State<HomeScreen> {
   /* ---------- no match card ---------- */
 
   /* ---------- near you card (flat design) ---------- */
-  Widget _nearCard(BuildContext context, bool ar, Map match) {
+  Widget _nearCard(BuildContext context, bool ar, Map<String, dynamic> match, double screenWidth, double screenHeight) {
     final theme = Theme.of(context);
     final matchId = match['id']?.toString();
     // Check if this match is in the user's joined matches list
@@ -980,12 +1088,18 @@ class _HomeScreenState extends State<HomeScreen> {
         hasPaid = p['hasPaid'] ?? false;
       }
     }
+    
+    // Responsive values
+    final titleFontSize = screenWidth > 600 ? 18.0 : 16.0;
+    final iconSize = screenWidth > 600 ? 18.0 : 16.0;
+    final horizontalPadding = screenWidth * 0.04;
+    final verticalPadding = screenHeight * 0.02;
 
     return InkWell(
       onTap: () => _navigateToMatchDetails(context, match),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: horizontalPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -998,17 +1112,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.textTheme.bodyLarge?.color,
+                      fontSize: titleFontSize,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (isAcademy) ...[
-                  const SizedBox(width: 8),
+                  SizedBox(width: screenWidth * 0.02),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.015,
+                      vertical: screenHeight * 0.003,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.purple.withOpacity(0.1),
@@ -1017,8 +1132,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Text(
                       ar ? 'أكاديمية' : 'Academy',
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: TextStyle(
+                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1026,11 +1141,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
                 if (isPrivate) ...[
-                  const SizedBox(width: 8),
+                  SizedBox(width: screenWidth * 0.02),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.015,
+                      vertical: screenHeight * 0.003,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.grey.withOpacity(0.1),
@@ -1039,8 +1154,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     child: Text(
                       ar ? 'خاص' : 'Private',
-                      style: const TextStyle(
-                        fontSize: 10,
+                      style: TextStyle(
+                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1049,9 +1164,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
                 if (isJoined) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.02,
+                      vertical: screenHeight * 0.005,
                     ),
                     decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
@@ -1065,11 +1180,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           size: 14,
                           color: Colors.green,
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: screenWidth * 0.01),
                         Text(
                           ar ? 'انضممت' : 'Joined',
-                          style: const TextStyle(
-                            fontSize: 12,
+                          style: TextStyle(
+                            fontSize: MediaQuery.textScaleFactorOf(context) * 12,
                             color: Colors.green,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1078,11 +1193,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   if (hasPaid) ...[
-                    const SizedBox(width: 8),
+                    SizedBox(width: screenWidth * 0.02),
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: screenWidth * 0.02,
+                        vertical: screenHeight * 0.005,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.green.withOpacity(0.1),
@@ -1091,31 +1206,32 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.green.withOpacity(0.5),
                         ),
                       ),
-                      child: const Text('✅', style: TextStyle(fontSize: 12)),
+                      child: Text('✅', style: TextStyle(fontSize: MediaQuery.textScaleFactorOf(context) * 12)),
                     ),
                   ],
                 ],
               ],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: screenHeight * 0.01),
             // Date
             Text(
               _formatMatchDate(match['date']),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                fontSize: MediaQuery.textScaleFactorOf(context) * 14,
               ),
             ),
-            const SizedBox(height: 4),
+            SizedBox(height: screenHeight * 0.005),
             // Meta info row
             Row(
               children: [
                 if (match['fieldName'] != null) ...[
                   Icon(
                     Icons.location_on,
-                    size: 16,
+                    size: iconSize,
                     color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: screenWidth * 0.01),
                   Expanded(
                     child: Text(
                       match['fieldName'],
@@ -1123,6 +1239,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: theme.textTheme.bodySmall?.color?.withOpacity(
                           0.6,
                         ),
+                        fontSize: MediaQuery.textScaleFactorOf(context) * 12,
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -1130,23 +1247,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ],
                 if (match['time'] != null) ...[
-                  const SizedBox(width: 16),
+                  SizedBox(width: screenWidth * 0.04),
                   Icon(
                     Icons.access_time,
-                    size: 16,
+                    size: iconSize,
                     color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
                   ),
-                  const SizedBox(width: 4),
+                  SizedBox(width: screenWidth * 0.01),
                   Text(
                     match['time'].toString(),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
+                      fontSize: MediaQuery.textScaleFactorOf(context) * 12,
                     ),
                   ),
                 ],
               ],
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: screenHeight * 0.015),
             // Players bar and action button
             Row(
               children: [
@@ -1158,20 +1276,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Icon(
                             Icons.group,
-                            size: 16,
+                            size: iconSize,
                             color: theme.textTheme.bodySmall?.color
                                 ?.withOpacity(0.6),
                           ),
-                          const SizedBox(width: 4),
+                          SizedBox(width: screenWidth * 0.01),
                           Text(
                             '${match['playersCount'] ?? 0}/${match['maxPlayers'] ?? 10}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
+                              fontSize: MediaQuery.textScaleFactorOf(context) * 14,
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: screenHeight * 0.008),
                       LinearProgressIndicator(
                         value: (match['maxPlayers'] ?? 10) > 0
                             ? (match['playersCount'] ?? 0) /
@@ -1187,14 +1306,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: screenWidth * 0.04),
                 ElevatedButton.icon(
                   onPressed: isJoined
                       ? () => _navigateToMatchDetails(context, match)
                       : () => _joinToMatch(match),
                   icon: Icon(
                     isJoined ? Icons.info_outline : Icons.person_add,
-                    size: 18,
+                    size: iconSize,
                     color: theme.colorScheme.onPrimary,
                   ),
                   label: Text(
@@ -1212,9 +1331,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: screenWidth * 0.035,
+                      vertical: screenHeight * 0.012,
                     ),
                   ),
                 ),
@@ -1227,11 +1346,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /* ---------- no matches card ---------- */
-  Widget _noMatchesCard(BuildContext context, bool ar) {
+  Widget _noMatchesCard(BuildContext context, bool ar, double screenWidth, double screenHeight) {
     final theme = Theme.of(context);
+    final iconSize = screenWidth > 600 ? 64.0 : 48.0;
+    final titleFontSize = screenWidth > 600 ? 22.0 : 18.0;
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.only(bottom: screenHeight * 0.02),
+      padding: EdgeInsets.all(screenHeight * 0.025),
       decoration: BoxDecoration(
         color:
             theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
@@ -1242,14 +1364,14 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(
             Icons.sports_soccer,
             color: theme.colorScheme.primary.withOpacity(0.6),
-            size: 48,
+            size: iconSize,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: screenHeight * 0.02),
           Text(
             ar ? 'لا توجد مباريات' : 'No matches available',
             style: GoogleFonts.spaceGrotesk(
               color: theme.textTheme.displayLarge?.color ?? Colors.white,
-              fontSize: 18,
+              fontSize: titleFontSize,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -1270,7 +1392,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /* ---------- Navigation Methods ---------- */
-  void _navigateToMatchDetails(BuildContext context, Map match) {
+  void _navigateToMatchDetails(BuildContext context, Map<String, dynamic> match) {
     // Check if user is guest before navigating
     final ar = widget.ctrl.isArabic;
     if (!GuestService.handleGuestInteraction(context, ar)) {
@@ -1292,50 +1414,99 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _joinToMatch(Map match) {
+  Future<void> _joinToMatch(Map<String, dynamic> match) async {
     // Check if user is guest before joining
     final ar = widget.ctrl.isArabic;
-    if (!GuestService.handleGuestInteraction(context, ar)) {
+    if (GuestService.handleGuestInteraction(context, ar)) {
       return; // Guest user - blocked
     }
-
-    final currentPlayers = match['playersCount'] ?? 0;
-    final maxPlayers = match['maxPlayers'] ?? 10;
-    final isFull = currentPlayers >= maxPlayers;
-    final matchId = match['id']?.toString();
+    if (_isJoiningMatch) {
+      return; // Prevent double-taps
+    }
 
     setState(() {
-      // Add to _allJoinedMatches if not already there
-      if (!_allJoinedMatches.any((m) => m['id']?.toString() == matchId)) {
-        _allJoinedMatches.add(Map<String, dynamic>.from(match));
-      }
-
-      // Add to waiting list if full, otherwise increment player count
-      if (isFull) {
-        match['waitingList'] = match['waitingList'] ?? [];
-        match['waitingList'].add({
-          'userId': 'current_user_id', // Replace with actual user ID
-          'joinedAt': DateTime.now().toIso8601String(),
-        });
-      } else {
-        match['playersCount'] = currentPlayers + 1;
-      }
+      _isJoiningMatch = true;
     });
 
-    // Show appropriate success message
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          isFull
-              ? (widget.ctrl.isArabic
-                    ? 'تمت الإضافة إلى قائمة الانتظار!'
-                    : 'Added to waiting list!')
-              : (widget.ctrl.isArabic
-                    ? 'تم الانضمام إلى المباراة بنجاح!'
-                    : 'Successfully joined the match!'),
-        ),
-        backgroundColor: isFull ? Colors.orange : Colors.green,
-      ),
-    );
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(ar ? 'يجب عليك تسجيل الدخول أولاً' : 'You must be logged in.')),
+        );
+        setState(() => _isJoiningMatch = false);
+      }
+      return;
+    }
+
+    final matchId = match['id']?.toString();
+    if (matchId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(ar ? 'معرف المباراة غير صالح' : 'Invalid Match ID.')),
+        );
+        setState(() => _isJoiningMatch = false);
+      }
+      return;
+    }
+
+    final matchRef = FirebaseFirestore.instance.collection('matches').doc(matchId);
+
+    try {
+      // Use a Firestore Transaction for atomic read-modify-write
+      String status = await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(matchRef);
+
+        if (!snapshot.exists) {
+          throw Exception("Match does not exist!");
+        }
+
+        final matchData = snapshot.data()!;
+        final List<dynamic> players = List.from(matchData['players'] ?? []);
+        final List<dynamic> waitingList = List.from(matchData['waitingList'] ?? []);
+        final int maxPlayers = matchData['maxPlayers'] ?? 10;
+
+        if (players.contains(user.uid) || waitingList.any((p) => p is Map && p['userId'] == user.uid)) {
+          throw Exception(ar ? 'لقد انضممت بالفعل إلى هذه المباراة' : 'You have already joined this match.');
+        }
+
+        if (players.length < maxPlayers) {
+          transaction.update(matchRef, {
+            'players': FieldValue.arrayUnion([user.uid]),
+            'playersCount': FieldValue.increment(1),
+          });
+          return ar ? 'تم الانضمام إلى المباراة بنجاح!' : 'Successfully joined the match!';
+        } else {
+          transaction.update(matchRef, {
+            'waitingList': FieldValue.arrayUnion([
+              {'userId': user.uid, 'joinedAt': Timestamp.now()}
+            ]),
+          });
+          return ar ? 'تمت الإضافة إلى قائمة الانتظار!' : 'Added to waiting list!';
+        }
+      });
+
+      // On success, refresh data from Firestore and show message
+      if (mounted) {
+        await _loadJoinedMatches();
+        await MatchesService().loadMatchesFromFirestore(); // Refresh public matches
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(status), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isJoiningMatch = false;
+        });
+      }
+    }
   }
 }

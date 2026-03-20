@@ -1,12 +1,27 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_service.dart';
 
 class StoreStore extends ChangeNotifier {
   StoreStore._internal() {
-    // Listen to Firestore for real-time updates
+    // 🔒 Only listen to Firestore if user is authenticated
+    _initializeStore();
+  }
+  
+  /// 🔒 Initialize store - only if user is authenticated
+  Future<void> _initializeStore() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      debugPrint('⚠️ Guest mode - not listening to store Firestore');
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+    // User is authenticated, start listening
     _listenToStoreItems();
   }
+  
   static final StoreStore instance = StoreStore._internal();
 
   List<Map<String, dynamic>> _items = [];
@@ -18,7 +33,15 @@ class StoreStore extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
 
+  /// 🔒 Check if user is authenticated before operations
+  bool get _isAuthenticated => FirebaseAuth.instance.currentUser != null;
+
   Future<void> addItem(Map<String, dynamic> item) async {
+    // 🔒 Guard: Check authentication
+    if (!_isAuthenticated) {
+      debugPrint('⚠️ Guest mode - cannot add store item');
+      return;
+    }
     try {
       // Add ID if not present
       item['id'] ??= DateTime.now().millisecondsSinceEpoch.toString();
@@ -31,6 +54,14 @@ class StoreStore extends ChangeNotifier {
   }
 
   void _listenToStoreItems() {
+    // 🔒 Double-check authentication before listening
+    if (!_isAuthenticated) {
+      debugPrint('⚠️ Guest mode - not listening to store Firestore');
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+    
     _subscription?.cancel();
     _subscription = _firebaseService.storeItemsStream().listen(
       (itemsData) {
@@ -55,7 +86,28 @@ class StoreStore extends ChangeNotifier {
     );
   }
 
+  /// 🔒 Re-start listening after login
+  void startListening() {
+    if (_isAuthenticated && _subscription == null) {
+      _listenToStoreItems();
+    }
+  }
+
+  /// 🛑 Stop listening and clear data (e.g. on logout)
+  void stopListening() {
+    _subscription?.cancel();
+    _subscription = null;
+    _items = [];
+    _isLoading = true;
+    notifyListeners();
+  }
+
   Future<void> updateItem(String itemId, Map<String, dynamic> updates) async {
+    // 🔒 Guard: Check authentication
+    if (!_isAuthenticated) {
+      debugPrint('⚠️ Guest mode - cannot update store item');
+      return;
+    }
     try {
       await _firebaseService.updateStoreItem(itemId, updates);
       // Firestore stream will update local list
@@ -66,6 +118,11 @@ class StoreStore extends ChangeNotifier {
   }
 
   Future<void> deleteItem(String itemId) async {
+    // 🔒 Guard: Check authentication
+    if (!_isAuthenticated) {
+      debugPrint('⚠️ Guest mode - cannot delete store item');
+      return;
+    }
     try {
       await _firebaseService.deleteStoreItem(itemId);
       // Firestore stream will update local list

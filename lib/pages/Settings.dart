@@ -12,6 +12,7 @@ import 'FAQPage.dart';
 import 'PrivacyPolicyPage.dart';
 import 'TermsConditionsPage.dart';
 import 'RulesBookPage.dart';
+import '../services/account_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   final LocaleController ctrl;
@@ -27,6 +28,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen size for responsive design
+    final screenSize = MediaQuery.of(context).size;
+    final screenWidth = screenSize.width;
+    
+    // Calculate responsive values
+    final horizontalPadding = screenWidth * 0.05;
+    
     return ListenableBuilder(
       listenable: widget.ctrl,
       builder: (context, child) {
@@ -54,101 +62,114 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               centerTitle: true,
             ),
-            body: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionTitle(
-                    context,
-                    ar ? 'الإشعارات' : 'Notifications',
-                  ),
-                  _buildNotificationTile(
-                    context,
-                    ar ? 'إشعارات المباريات' : 'Match Notifications',
-                    _matchNotificationsEnabled,
-                    (value) =>
-                        setState(() => _matchNotificationsEnabled = value),
-                  ),
-                  _buildNotificationTile(
-                    context,
-                    ar ? 'تحديثات التطبيق' : 'App Updates',
-                    _appUpdatesEnabled,
-                    (value) => setState(() => _appUpdatesEnabled = value),
-                  ),
-                  Divider(color: theme.dividerColor, height: 1),
-                  _buildSectionTitle(context, ar ? 'الأذونات' : 'PERMISSIONS'),
-                  const PermissionsSection(),
-                  Divider(color: theme.dividerColor, height: 1),
-                  _buildSectionTitle(context, ar ? 'الدعم' : 'SUPPORT'),
-                  _buildSettingsTile(
-                    context: context,
-                    title: ar ? 'الأسئلة الشائعة' : 'FAQ\'s',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => FAQPage(ctrl: widget.ctrl),
-                      ),
-                    ),
-                    ar: ar,
-                  ),
-                  Divider(color: theme.dividerColor, height: 1),
-                  _buildSectionTitle(context, ar ? 'القانونية' : 'LEGAL'),
-                  _buildSettingsTile(
-                    context: context,
-                    title: ar ? 'سياسة الخصوصية' : 'Privacy Policy',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => PrivacyPolicyPage(ctrl: widget.ctrl),
-                      ),
-                    ),
-                    ar: ar,
-                  ),
-                  _buildSettingsTile(
-                    context: context,
-                    title: ar ? 'الشروط والأحكام' : 'Terms & Conditions',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => TermsConditionsPage(ctrl: widget.ctrl),
-                      ),
-                    ),
-                    ar: ar,
-                  ),
-                  _buildSettingsTile(
-                    context: context,
-                    title: ar ? 'كتاب القواعد' : 'Rules Book',
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => RulesBookPage(ctrl: widget.ctrl),
-                      ),
-                    ),
-                    ar: ar,
-                  ),
-                  Divider(color: theme.dividerColor, height: 1),
-                  _buildSectionTitle(context, ar ? 'فريقنا' : 'OUR TEAM'),
-                  _buildSettingsTile(
-                    context: context,
-                    title: ar ? 'انضم إلينا' : 'Join Us',
-                    onTap: () => _showJoinUsDialog(context, ar),
-                    ar: ar,
-                  ),
-                  Divider(color: theme.dividerColor, height: 1),
-                  _buildSectionTitle(context, ar ? 'الحساب' : 'Account'),
-                  _buildSettingsTile(
-                    context: context,
-                    title: ar ? 'تغيير اللغة' : 'Change Language',
-                    onTap: () => widget.ctrl.toggle(),
-                    ar: ar,
-                  ),
-                  _buildThemeToggleTile(context, ar),
-                  _buildSettingsTile(
-                    context: context,
-                    title: ar ? 'تسجيل الخروج' : 'Logout',
-                    onTap: () => Navigator.of(
+            body: SafeArea(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildSectionTitle(
                       context,
-                    ).pushNamedAndRemoveUntil('/login', (route) => false),
-                    ar: ar,
-                    isDestructive: true,
-                  ),
-                ],
+                      ar ? 'الإشعارات' : 'Notifications',
+                    ),
+                    _buildNotificationTile(
+                      context,
+                      ar ? 'إشعارات المباريات' : 'Match Notifications',
+                      _matchNotificationsEnabled,
+                      (value) =>
+                          setState(() => _matchNotificationsEnabled = value),
+                    ),
+                    _buildNotificationTile(
+                      context,
+                      ar ? 'تحديثات التطبيق' : 'App Updates',
+                      _appUpdatesEnabled,
+                      (value) => setState(() => _appUpdatesEnabled = value),
+                    ),
+                    Divider(color: theme.dividerColor, height: 1),
+                    _buildSectionTitle(context, ar ? 'الأذونات' : 'PERMISSIONS'),
+                    const PermissionsSection(),
+                    Divider(color: theme.dividerColor, height: 1),
+                    _buildSectionTitle(context, ar ? 'الدعم' : 'SUPPORT'),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'الأسئلة الشائعة' : 'FAQ\'s',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => FAQPage(ctrl: widget.ctrl),
+                        ),
+                      ),
+                      ar: ar,
+                    ),
+                    Divider(color: theme.dividerColor, height: 1),
+                    _buildSectionTitle(context, ar ? 'القانونية' : 'LEGAL'),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'سياسة الخصوصية' : 'Privacy Policy',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PrivacyPolicyPage(ctrl: widget.ctrl),
+                        ),
+                      ),
+                      ar: ar,
+                    ),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'الشروط والأحكام' : 'Terms & Conditions',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => TermsConditionsPage(ctrl: widget.ctrl),
+                        ),
+                      ),
+                      ar: ar,
+                    ),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'كتاب القواعد' : 'Rules Book',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => RulesBookPage(ctrl: widget.ctrl),
+                        ),
+                      ),
+                      ar: ar,
+                    ),
+                    Divider(color: theme.dividerColor, height: 1),
+                    _buildSectionTitle(context, ar ? 'فريقنا' : 'OUR TEAM'),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'انضم إلينا' : 'Join Us',
+                      onTap: () => _showJoinUsDialog(context, ar),
+                      ar: ar,
+                    ),
+                    Divider(color: theme.dividerColor, height: 1),
+                    _buildSectionTitle(context, ar ? 'الحساب' : 'Account'),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'تغيير اللغة' : 'Change Language',
+                      onTap: () => widget.ctrl.toggle(),
+                      ar: ar,
+                    ),
+                    _buildThemeToggleTile(context, ar),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'حذف الحساب' : 'Delete Account',
+                      onTap: () => AccountService.deleteAccount(context),
+                      ar: ar,
+                      isDestructive: true,
+                    ),
+                    _buildSettingsTile(
+                      context: context,
+                      title: ar ? 'تسجيل الخروج' : 'Logout',
+                      onTap: () {
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          '/login',
+                          (route) => false,
+                        );
+                      },
+                      ar: ar,
+                      isDestructive: true,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -425,3 +446,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 }
+

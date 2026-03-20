@@ -70,6 +70,36 @@ class _MatchEditPageState extends State<MatchEditPage> {
     );
   }
 
+  TimeOfDay? parseTime(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return null;
+
+    try {
+      final cleaned = timeStr.trim();
+      final isPM = cleaned.toUpperCase().contains('PM');
+      final isAM = cleaned.toUpperCase().contains('AM');
+
+      final numeric = cleaned.replaceAll(RegExp(r'[APMapm ]'), '');
+      final parts = numeric.split(':');
+
+      if (parts.length != 2) return null;
+
+      final hourPart = int.tryParse(parts[0]);
+      final minutePart = int.tryParse(parts[1]);
+
+      if (hourPart == null || minutePart == null) return null;
+
+      int hour = hourPart;
+      int minute = minutePart;
+
+      if (isPM && hour < 12) hour += 12;
+      if (isAM && hour == 12) hour = 0;
+
+      return TimeOfDay(hour: hour, minute: minute);
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _loadMatchData() {
     final match = widget.match!;
     _pitchType = match['pitchType'];
@@ -87,14 +117,7 @@ class _MatchEditPageState extends State<MatchEditPage> {
     }
 
     // Parse time
-    if (match['time'] != null && match['time'] is String) {
-      final timeParts = (match['time'] as String).split(':');
-      if (timeParts.length >= 2) {
-        final hour = int.tryParse(timeParts[0]) ?? 0;
-        final minute = int.tryParse(timeParts[1].split(' ')[0]) ?? 0;
-        _selectedTime = TimeOfDay(hour: hour, minute: minute);
-      }
-    }
+    _selectedTime = parseTime(match['time']);
   }
 
   Future<void> _loadFields() async {
@@ -219,16 +242,21 @@ class _MatchEditPageState extends State<MatchEditPage> {
   Future<void> _selectCoaches() async {
     final ar = widget.ctrl.isArabic;
     try {
+
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('role', isEqualTo: 'Coach')
+          .where(
+            'role',
+            whereIn: ['coach', 'admin', 'Coach', 'Admin', 'COACH', 'ADMIN', 'referee', 'Referee', 'REFEREE'],
+          )
           .get();
 
       final coaches = snapshot.docs.map((doc) {
         final data = doc.data();
+
         return {
           'id': doc.id,
-          'name': data['username'] ?? data['email'] ?? 'Coach',
+          'name': data['name'] ?? data['username'] ?? data['displayName'] ?? 'Unknown',
           'email': data['email'] ?? '',
         };
       }).toList();
@@ -289,16 +317,21 @@ class _MatchEditPageState extends State<MatchEditPage> {
   Future<void> _selectOrganizers() async {
     final ar = widget.ctrl.isArabic;
     try {
+
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
-          .where('role', isEqualTo: 'Organizer')
+          .where(
+            'role',
+            whereIn: ['organizer', 'admin', 'Organizer', 'Admin', 'ORGANIZER', 'ADMIN'],
+          )
           .get();
 
       final organizers = snapshot.docs.map((doc) {
         final data = doc.data();
+
         return {
           'id': doc.id,
-          'name': data['username'] ?? data['email'] ?? 'Organizer',
+          'name': data['name'] ?? data['username'] ?? data['displayName'] ?? 'Unknown',
           'email': data['email'] ?? '',
         };
       }).toList();
@@ -399,8 +432,8 @@ class _MatchEditPageState extends State<MatchEditPage> {
         'ageTo': int.tryParse(_ageToController.text.trim()) ?? 35,
         'maxPlayers': int.tryParse(_maxPlayersController.text.trim()) ?? 22,
         'date': Timestamp.fromDate(combinedDateTime),
-        'time': _selectedTime!.format(context),
-        'coaches': _selectedCoaches.map((c) => c['id'] as String).toList(),
+                'time': _selectedTime!.format(context),
+                'coaches': _selectedCoaches.map((c) => c['id'] as String).toList(),
         'organizers': _selectedOrganizers
             .map((o) => o['id'] as String)
             .toList(),

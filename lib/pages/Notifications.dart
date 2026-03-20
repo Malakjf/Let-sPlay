@@ -1,11 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 import '../services/language.dart';
 import '../services/notification_service.dart';
-import '../widgets/GlassContainer.dart';
 
 class NotificationsPage extends StatefulWidget {
-  final LocaleController ctrl;
+  final LocaleController ctrl; // Passed for language settings
+
   const NotificationsPage({super.key, required this.ctrl});
 
   @override
@@ -13,272 +15,245 @@ class NotificationsPage extends StatefulWidget {
 }
 
 class _NotificationsPageState extends State<NotificationsPage> {
-  List<Map<String, dynamic>> _notifications = [];
+  final NotificationService _notificationService = NotificationService();
+  final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadNotifications();
-  }
+  String _formatTime(DateTime time, bool ar) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
 
-  Future<void> _loadNotifications() async {
-    try {
-      final notifications = await NotificationService().getNotifications();
-      setState(() {
-        _notifications = notifications;
-      });
-    } catch (e) {
-      debugPrint('Error loading notifications: $e');
+    if (diff.inMinutes < 1) {
+      return ar ? "الآن" : "Now";
     }
+    if (diff.inMinutes < 60) {
+      return ar ? "${diff.inMinutes} دقيقة" : "${diff.inMinutes} min";
+    }
+    if (diff.inHours < 24) {
+      return ar ? "${diff.inHours} ساعة" : "${diff.inHours} h";
+    }
+    if (diff.inDays < 7) {
+      return ar ? "${diff.inDays} يوم" : "${diff.inDays} d";
+    }
+    return DateFormat('dd/MM/yyyy').format(time);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final ar = widget.ctrl.isArabic;
-    final theme = Theme.of(context);
-
-    return Directionality(
-      textDirection: ar ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: AppBar(
-          backgroundColor: theme.appBarTheme.backgroundColor,
-          title: Text(
-            ar ? 'الإشعارات' : 'Notifications',
-            style: GoogleFonts.spaceGrotesk(
-              color: theme.textTheme.displayLarge?.color ?? Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(
-                Icons.clear_all,
-                color: theme.textTheme.bodyMedium?.color,
-              ),
-              onPressed: _clearAllNotifications,
-            ),
-          ],
-        ),
-        body: _notifications.isEmpty
-            ? _buildEmptyState(context, ar, theme)
-            : _buildNotificationsList(context, ar, theme),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context, bool ar, ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.notifications_none,
-            size: 80,
-            color: theme.colorScheme.primary.withOpacity(0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            ar ? 'لا توجد إشعارات' : 'No notifications',
-            style: GoogleFonts.spaceGrotesk(
-              color: theme.textTheme.displayLarge?.color ?? Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            ar ? 'ستظهر إشعاراتك هنا' : 'Your notifications will appear here',
-            style: GoogleFonts.spaceGrotesk(
-              color: theme.textTheme.bodyMedium?.color ?? Colors.white70,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNotificationsList(
-    BuildContext context,
-    bool ar,
-    ThemeData theme,
-  ) {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _notifications.length,
-      itemBuilder: (context, index) {
-        final notification = _notifications[index];
-        return _buildNotificationCard(context, ar, theme, notification);
-      },
-    );
-  }
-
-  Widget _buildNotificationCard(
-    BuildContext context,
-    bool ar,
-    ThemeData theme,
-    Map<String, dynamic> notification,
-  ) {
-    final isRead = notification['read'] ?? false;
-    final timestamp = notification['timestamp'] as DateTime?;
-    final timeString = timestamp != null ? _formatTime(timestamp, ar) : '';
-
-    return GlassContainer(
-      margin: const EdgeInsets.only(bottom: 12),
-      opacity: isRead ? 0.05 : 0.15,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: !isRead
-              ? Border.all(
-                  color: theme.colorScheme.primary.withOpacity(0.3),
-                  width: 1,
-                )
-              : null,
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(
-                _getNotificationIcon(notification['type']),
-                color: theme.colorScheme.primary,
-                size: 24,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification['title'] ?? '',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: theme.textTheme.displayLarge?.color ?? Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    notification['body'] ?? '',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: theme.textTheme.bodyMedium?.color ?? Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    timeString,
-                    style: GoogleFonts.spaceGrotesk(
-                      color: theme.textTheme.bodySmall?.color ?? Colors.white54,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (!isRead)
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  IconData _getNotificationIcon(String? type) {
+  IconData _getIconForType(String? type) {
     switch (type) {
-      case 'match':
+      case 'new_match':
         return Icons.sports_soccer;
-      case 'reminder':
-        return Icons.schedule;
-      case 'update':
-        return Icons.update;
+      case 'last_spot':
+        return Icons.warning_amber_rounded;
+      case 'match_full':
+        return Icons.lock_outline;
+      case 'match_updated':
+        return Icons.access_time;
       default:
         return Icons.notifications;
     }
   }
 
-  String _formatTime(DateTime timestamp, bool ar) {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inDays > 0) {
-      return ar
-          ? 'منذ ${difference.inDays} يوم'
-          : '${difference.inDays} days ago';
-    } else if (difference.inHours > 0) {
-      return ar
-          ? 'منذ ${difference.inHours} ساعة'
-          : '${difference.inHours} hours ago';
-    } else if (difference.inMinutes > 0) {
-      return ar
-          ? 'منذ ${difference.inMinutes} دقيقة'
-          : '${difference.inMinutes} minutes ago';
-    } else {
-      return ar ? 'الآن' : 'Now';
+  Color _getColorForType(String? type, bool isRead) {
+    if (isRead) return Colors.grey;
+    switch (type) {
+      case 'last_spot':
+        return Colors.orange;
+      case 'match_full':
+        return Colors.red;
+      case 'new_match':
+        return Colors.green;
+      default:
+        return Colors.blue;
     }
   }
 
-  void _clearAllNotifications() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        title: Text(
-          widget.ctrl.isArabic
-              ? 'مسح جميع الإشعارات'
-              : 'Clear All Notifications',
-          style: GoogleFonts.spaceGrotesk(
-            color: Theme.of(context).textTheme.displayLarge?.color,
-          ),
-        ),
-        content: Text(
-          widget.ctrl.isArabic
-              ? 'هل أنت متأكد من مسح جميع الإشعارات؟'
-              : 'Are you sure you want to clear all notifications?',
-          style: GoogleFonts.spaceGrotesk(
-            color: Theme.of(context).textTheme.bodyMedium?.color,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              widget.ctrl.isArabic ? 'إلغاء' : 'Cancel',
-              style: GoogleFonts.spaceGrotesk(
-                color: Theme.of(context).colorScheme.primary,
+  Widget _buildNotificationCard(Map<String, dynamic> notification, String id) {
+    final ar = widget.ctrl.isArabic;
+    final readBy = List<String>.from(notification['readBy'] ?? []);
+    final isRead = currentUserId != null && readBy.contains(currentUserId);
+
+    final dynamic rawTs = notification['timestamp']; // Can be Timestamp or null
+    DateTime timestamp = DateTime.now();
+    if (rawTs is Timestamp) {
+      timestamp = rawTs.toDate();
+    } else if (rawTs is DateTime) {
+      timestamp = rawTs;
+    }
+
+    final timeString = _formatTime(timestamp, ar);
+    final type = notification['type'] as String?;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+      elevation: isRead ? 0 : 2,
+      color: isRead ? Theme.of(context).cardColor : Colors.blue.shade50,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: isRead ? BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.5)) : BorderSide(color: Colors.blue.shade200),
+      ),
+      child: InkWell(
+        onTap: () async {
+          if (!isRead) {
+            await _notificationService.markAsRead(id);
+          }
+          final matchId = notification['matchId'];
+          if (matchId != null) {
+            Navigator.pushNamed(context, '/matchDetails', arguments: matchId);
+          }
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _getColorForType(type, isRead).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _getIconForType(type),
+                  color: _getColorForType(type, isRead),
+                  size: 24,
+                ),
               ),
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification['title'] ?? '',
+                            style: TextStyle(
+                              fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
+                              fontSize: 16,
+                              color: isRead ? Colors.black87 : Colors.black,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          timeString,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isRead ? Colors.grey : Colors.blueGrey,
+                            fontWeight: isRead ? FontWeight.normal : FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      notification['body'] ?? '',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700],
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              if (!isRead)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+            ],
           ),
-          TextButton(
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ar = widget.ctrl.isArabic;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(ar ? "الإشعارات" : "Notifications"),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.done_all),
+            tooltip: ar ? 'تحديد الكل كمقروء' : 'Mark all as read',
             onPressed: () async {
-              Navigator.of(context).pop();
-              await NotificationService().clearAllNotifications();
-              setState(() {
-                _notifications.clear();
-              });
+              await _notificationService.clearAllNotifications();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        ar ? 'تم تحديد الكل كمقروء' : 'All marked as read'),
+                    duration: const Duration(seconds: 1),
+                  ),
+                );
+              }
             },
-            child: Text(
-              widget.ctrl.isArabic ? 'مسح' : 'Clear',
-              style: GoogleFonts.spaceGrotesk(color: Colors.red),
-            ),
-          ),
+          )
         ],
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _notificationService.getNotificationsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    ar ? "حدث خطأ" : "Something went wrong",
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            );
+          }
+          final docs = snapshot.data?.docs ?? [];
+          if (docs.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.notifications_none,
+                      size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text(
+                    ar ? "لا توجد إشعارات" : "No notifications yet",
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final data = docs[index].data() as Map<String, dynamic>;
+              final id = docs[index].id;
+              return _buildNotificationCard(data, id);
+            },
+          );
+        },
       ),
     );
   }

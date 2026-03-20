@@ -10,10 +10,9 @@ import 'package:provider/provider.dart';
 import 'dart:async'; // Add this import
 import 'services/firebase_service.dart';
 import 'services/firebase_options.dart';
-import 'services/notification_service.dart';
+import 'services/notification_service.dart' show NotificationService;
 import 'services/language.dart';
 import 'services/theme_controller.dart';
-import 'services/firestore_monitor.dart';
 import 'services/firestore_readiness_guard.dart';
 import 'utils/permissions.dart';
 import 'package:letsplay/services/player_stats_store.dart';
@@ -44,6 +43,7 @@ import 'pages/TermsConditionsPage.dart';
 import 'pages/RulesBookPage.dart';
 import 'pages/FutCardDemo.dart';
 import 'pages/MatchesPageEnhanced.dart';
+import 'pages/EditMatch.dart';
 
 Future<T?> safeFirestore<T>(
   Future<T> Function() action, {
@@ -144,7 +144,10 @@ void main() async {
 
   /// 🔔 Notifications (optional)
   try {
+    // Initialize notification service (permissions, channels)
     await NotificationService().initialize();
+    // Set up listeners for FCM token changes based on auth state
+    NotificationService().setupTokenListeners();
   } catch (_) {}
 
   final localeController = LocaleController();
@@ -224,8 +227,8 @@ class LetsPlayApp extends StatelessWidget {
       darkTheme: createThemeData(AppTheme.dark, isDark: true),
       themeMode: themeCtrl.themeMode,
 
-      /// 🔐 Auth Guard with Firestore Monitor
-      home: const FirestoreMonitor(child: AuthGate()),
+      ///  Always start with the Splash Page.
+      home: const SplashPage(),
 
       /// 🧭 Routes
       onGenerateRoute: (settings) {
@@ -394,45 +397,13 @@ class LetsPlayApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (_) => RulesBookPage(ctrl: localeCtrl),
             );
+          case '/editMatch':
+            final args = settings.arguments as Map<String, dynamic>?;
+            return MaterialPageRoute(
+              builder: (_) => EditMatchPage(ctrl: localeCtrl, match: args),
+            );
         }
         return null;
-      },
-    );
-  }
-}
-
-/* ================= AUTH GATE ================= */
-
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final localeCtrl = context.read<LocaleController>();
-
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        if (!snap.hasData) {
-          return FootballSplashAnimation(
-            onComplete: () {
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => WelcomePage(ctrl: localeCtrl),
-                ),
-              );
-            },
-            appName: 'LetsPlay',
-          );
-        }
-
-        return MainLayout(ctrl: localeCtrl);
       },
     );
   }

@@ -61,7 +61,8 @@ class PlayerMetricsStore extends ChangeNotifier {
 
       if (!matchDoc.exists) return;
 
-      final playerIds = List<String>.from(matchDoc['players'] ?? []);
+      final data = matchDoc.data();
+      final playerIds = List<String>.from(data?['players'] ?? []);
 
       // Initialize each player with zero metrics
       for (final playerId in playerIds) {
