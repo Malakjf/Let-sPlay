@@ -373,9 +373,7 @@ class LetsPlayApp extends StatelessWidget {
               builder: (_) => ManagementScreen(ctrl: localeCtrl),
             );
           case '/notifications':
-            return MaterialPageRoute(
-              builder: (_) => NotificationsPage(ctrl: localeCtrl),
-            );
+            return MaterialPageRoute(builder: (_) => const NotificationsPage());
           case '/matchDetails':
             return MaterialPageRoute(
               builder: (_) =>
