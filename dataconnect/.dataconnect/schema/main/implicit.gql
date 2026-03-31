@@ -1,0 +1,46 @@
+extend type Field {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Field", purpose: IMPLICIT_KEY_FIELD)
+}
+extend type Match {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "Match", purpose: IMPLICIT_KEY_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Match`.`field`. It must match the value of `Field`.`id`. See `@ref` for how to customize it.
+  """
+  fieldId: UUID @fdc_generated(from: "Match.field", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Match`.`organizer`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  organizerId: UUID @fdc_generated(from: "Match.organizer", purpose: IMPLICIT_REF_FIELD)
+}
+extend type MatchJoin {
+  """
+  ✨ Implicit foreign key field based on `MatchJoin`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  userId: UUID! @fdc_generated(from: "MatchJoin.user", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `MatchJoin`.`match`. It must match the value of `Match`.`id`. See `@ref` for how to customize it.
+  """
+  matchId: UUID! @fdc_generated(from: "MatchJoin.match", purpose: IMPLICIT_REF_FIELD)
+}
+extend type MatchRequest {
+  """
+  ✨ Implicit foreign key field based on `MatchRequest`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  userId: UUID! @fdc_generated(from: "MatchRequest.user", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `MatchRequest`.`match`. It must match the value of `Match`.`id`. See `@ref` for how to customize it.
+  """
+  matchId: UUID! @fdc_generated(from: "MatchRequest.match", purpose: IMPLICIT_REF_FIELD)
+}
+extend type User {
+  """
+  ✨ Implicit primary key field. It's a UUID column default to a generated new value. See `@table` for how to customize it.
+  """
+  id: UUID! @default(expr: "uuidV4()") @fdc_generated(from: "User", purpose: IMPLICIT_KEY_FIELD)
+}

@@ -1,0 +1,257 @@
+extend type Query {
+  """
+  ✨ Look up a single `Field` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  field(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Field_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Field_FirstRow
+  ): Field @fdc_generated(from: "Field", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `Match` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  match(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: Match_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: Match_FirstRow
+  ): Match @fdc_generated(from: "Match", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `MatchJoin` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  matchJoin(
+    """
+    The key used to identify the object.
+    """
+    key: MatchJoin_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MatchJoin_FirstRow
+  ): MatchJoin @fdc_generated(from: "MatchJoin", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `MatchRequest` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  matchRequest(
+    """
+    The key used to identify the object.
+    """
+    key: MatchRequest_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: MatchRequest_FirstRow
+  ): MatchRequest @fdc_generated(from: "MatchRequest", purpose: QUERY_SINGLE)
+  """
+  ✨ Look up a single `User` based on `id`, `key` or `first` and return selected fields (or `null` if not found).
+  """
+  user(
+    """
+    The unique ID of the object.
+    """
+    id: UUID
+
+    """
+    The key used to identify the object.
+    """
+    key: User_Key
+
+    """
+    Fetch the first row based on the filters and ordering.
+    """
+    first: User_FirstRow
+  ): User @fdc_generated(from: "User", purpose: QUERY_SINGLE)
+  """
+  ✨ List `Field` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  fields(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Field_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Field_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Field_Having
+  ): [Field!]! @fdc_generated(from: "Field", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `Match` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  matches(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: Match_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [Match_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: Match_Having
+  ): [Match!]! @fdc_generated(from: "Match", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `MatchJoin` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  matchJoins(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchJoin_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchJoin_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchJoin_Having
+  ): [MatchJoin!]! @fdc_generated(from: "MatchJoin", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `MatchRequest` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  matchRequests(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: MatchRequest_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [MatchRequest_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: MatchRequest_Having
+  ): [MatchRequest!]! @fdc_generated(from: "MatchRequest", purpose: QUERY_MULTIPLE)
+  """
+  ✨ List `User` objects in the table and return selected fields, optionally filtered by `where` conditions
+  """
+  users(
+    """
+    Filter condition to narrow down the query results.
+    """
+    where: User_Filter
+
+    """
+    Order the query results by specific fields.
+    """
+    orderBy: [User_Order!]
+
+    """
+    Number of rows to skip before starting to return the results.
+    """
+    offset: Int
+
+    """
+    Maximum number of rows to return (defaults to 100 rows).
+    """
+    limit: Int = 100
+
+    """
+    Set to true to return distinct results.
+    """
+    distinct: Boolean = false
+
+    """
+    Filter condition to apply to the groups of aggregate queries.
+    """
+    having: User_Having
+  ): [User!]! @fdc_generated(from: "User", purpose: QUERY_MULTIPLE)
+}

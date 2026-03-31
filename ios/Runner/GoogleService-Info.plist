@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>225974242504-50bd873ad1d17d99b0e9fd.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.225974242504-50bd873ad1d17d99b0e9fd</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>225974242504-4f15cc2104f6be44b0e9fd.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyAok9QvLOOs_k2f5G_jEyZi80R8M0t960U</string>
+	<key>GCM_SENDER_ID</key>
+	<string>225974242504</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.example.letsPlayapp</string>
+	<key>PROJECT_ID</key>
+	<string>lets-play-app-9e8e0</string>
+	<key>STORAGE_BUCKET</key>
+	<string>lets-play-app-9e8e0.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:225974242504:ios:50bd873ad1d17d99b0e9fd</string>
+</dict>
+</plist>

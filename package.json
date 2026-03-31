@@ -1,0 +1,24 @@
+{
+  "name": "letsplay-tools",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "create-admin": "node tools/create_admin.js --email=letsplaysup2025@gmail.com --username=letsplay_admin --password=P@ssw0rd",
+    "create-admin-prompt": "node tools/create_admin.js --email=letsplaysup2025@gmail.com --username=letsplay_admin"
+  },
+  "dependencies": {
+    "@dataconnect/admin-generated": "file:src/dataconnect-admin-generated",
+    "firebase-admin": "^11.11.1",
+    "protobufjs": "^7.5.4"
+  },
+  "description": "A new Flutter project.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

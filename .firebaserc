@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "lets-play-app-9e8e0",
+    "firebase use lets-play-app-prod": "lets-play-app-9e8e0"
+  },
+  "targets": {},
+  "etags": {}
+}

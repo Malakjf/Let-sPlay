@@ -1,0 +1,11 @@
+{
+  "task.autoDetect": "off",
+  "dart.flutterSdkPath": "C:\\Users\\MalakAlzebdieh\\develop\\flutter",
+  "dart.openDevTools": "flutter",
+  "dart.debugExternalConsoleLibraries": true,
+  "dart.evaluateGettersInDebugViews": true,
+  "dart.buildRunnerArgs": [
+    "--delete-conflicting-outputs"
+  ]
+}
+

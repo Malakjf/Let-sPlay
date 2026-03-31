@@ -1,0 +1,40 @@
+type User @table {
+  username: String!
+  email: String!
+  createdAt: Timestamp!
+  displayName: String
+  profilePictureUrl: String
+}
+
+type Field @table {
+  name: String!
+  address: String!
+  description: String
+  capacity: Int
+}
+
+type Match @table {
+  name: String!
+  description: String!
+  dateTime: Timestamp!
+  status: String!
+  createdAt: Timestamp!
+  maxParticipants: Int
+  organizer: User
+  field: Field
+}
+
+type MatchRequest @table(key: ["user", "match"]) {
+  user: User!
+  match: Match!
+  status: String!
+  createdAt: Timestamp!
+  message: String
+}
+
+type MatchJoin @table(key: ["user", "match"]) {
+  user: User!
+  match: Match!
+  joinedAt: Timestamp!
+  role: String
+}
