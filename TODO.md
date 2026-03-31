@@ -1,9 +1,6 @@
-# Git Upload to origin/dev Progress
+# Android App Bundle Build Steps
 
-## Steps:
-- [ ] Step 1: Remove erroneous tool artifact file
-- [ ] Step 2: Stage all changes (`git add .`)
-- [ ] Step 3: Commit changes
-- [ ] Step 4: Push to origin/dev (`git push origin dev`)
-
-**Next:** Awaiting Step 1 result.
+1. [x] flutter clean
+2. [x] flutter pub get
+3. [ ] flutter build appbundle --release
+4. [ ] Verify output in build/app/outputs/bundle/release/app-release.aab
