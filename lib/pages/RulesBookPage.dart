@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:letsplay/widgets/App_Bottom_Nav.dart';
 import '../services/language.dart';
 import '../widgets/GlassContainer.dart';
 
@@ -141,7 +140,6 @@ class RulesBookPage extends StatelessWidget {
                 ],
               ),
             ),
-            bottomNavigationBar: const AppBottomNav(index: 3),
           ),
         );
       },

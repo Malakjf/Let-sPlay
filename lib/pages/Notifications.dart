@@ -1,14 +1,13 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../services/language.dart';
+import 'package:flutter/services.dart';
+
+// عدّل المسار لو NotificationService عندك في مكان آخر
 import '../services/notification_service.dart';
 
 class NotificationsPage extends StatefulWidget {
-  final LocaleController ctrl; // Passed for language settings
-
-  const NotificationsPage({super.key, required this.ctrl});
+  const NotificationsPage({super.key});
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -16,241 +15,222 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   final NotificationService _notificationService = NotificationService();
-  final String? currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-  String _formatTime(DateTime time, bool ar) {
-    final now = DateTime.now();
-    final diff = now.difference(time);
-
-    if (diff.inMinutes < 1) {
-      return ar ? "الآن" : "Now";
-    }
-    if (diff.inMinutes < 60) {
-      return ar ? "${diff.inMinutes} دقيقة" : "${diff.inMinutes} min";
-    }
-    if (diff.inHours < 24) {
-      return ar ? "${diff.inHours} ساعة" : "${diff.inHours} h";
-    }
-    if (diff.inDays < 7) {
-      return ar ? "${diff.inDays} يوم" : "${diff.inDays} d";
-    }
-    return DateFormat('dd/MM/yyyy').format(time);
+  @override
+  void initState() {
+    super.initState();
+    // تأكد أن السرفيس مبادر (يطابق ما عندك). هذا آمن لأن initialize() داخليًا يحمي من النداءات المتكررة.
+    _notificationService.initialize();
   }
 
-  IconData _getIconForType(String? type) {
-    switch (type) {
-      case 'new_match':
-        return Icons.sports_soccer;
-      case 'last_spot':
-        return Icons.warning_amber_rounded;
-      case 'match_full':
-        return Icons.lock_outline;
-      case 'match_updated':
-        return Icons.access_time;
-      default:
-        return Icons.notifications;
+  DateTime? _toDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) {
+      try {
+        return DateTime.tryParse(value);
+      } catch (_) {
+        return null;
+      }
     }
+    return null;
   }
 
-  Color _getColorForType(String? type, bool isRead) {
-    if (isRead) return Colors.grey;
-    switch (type) {
-      case 'last_spot':
-        return Colors.orange;
-      case 'match_full':
-        return Colors.red;
-      case 'new_match':
-        return Colors.green;
-      default:
-        return Colors.blue;
-    }
+  String _formatTimestamp(dynamic ts) {
+    final dt = _toDateTime(ts);
+    if (dt == null) return '';
+    // صيغة عرض قابلة للتعديل
+    return DateFormat.yMMMd().add_jm().format(dt.toLocal());
   }
 
-  Widget _buildNotificationCard(Map<String, dynamic> notification, String id) {
-    final ar = widget.ctrl.isArabic;
-    final readBy = List<String>.from(notification['readBy'] ?? []);
-    final isRead = currentUserId != null && readBy.contains(currentUserId);
+  Widget _buildErrorCard(Object? error) {
+    final msg = error?.toString() ?? 'Unknown error';
+    // Try to extract a Firebase console index creation URL, if present
+    final match = RegExp(r'https?://\S+').firstMatch(msg);
+    final url = match?.group(0);
 
-    final dynamic rawTs = notification['timestamp']; // Can be Timestamp or null
-    DateTime timestamp = DateTime.now();
-    if (rawTs is Timestamp) {
-      timestamp = rawTs.toDate();
-    } else if (rawTs is DateTime) {
-      timestamp = rawTs;
-    }
-
-    final timeString = _formatTime(timestamp, ar);
-    final type = notification['type'] as String?;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-      elevation: isRead ? 0 : 2,
-      color: isRead ? Theme.of(context).cardColor : Colors.blue.shade50,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: isRead ? BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.5)) : BorderSide(color: Colors.blue.shade200),
-      ),
-      child: InkWell(
-        onTap: () async {
-          if (!isRead) {
-            await _notificationService.markAsRead(id);
-          }
-          final matchId = notification['matchId'];
-          if (matchId != null) {
-            Navigator.pushNamed(context, '/matchDetails', arguments: matchId);
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _getColorForType(type, isRead).withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  _getIconForType(type),
-                  color: _getColorForType(type, isRead),
-                  size: 24,
-                ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 60, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              'Something went wrong',
+              style: TextStyle(color: Colors.grey[300], fontSize: 18),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              // show short message preview
+              msg.split('\n').take(2).join(' '),
+              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+            if (url != null) ...[
+              const SizedBox(height: 12),
+              SelectableText(
+                url,
+                style: const TextStyle(fontSize: 12, color: Colors.blueAccent),
+                textAlign: TextAlign.center,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            notification['title'] ?? '',
-                            style: TextStyle(
-                              fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
-                              fontSize: 16,
-                              color: isRead ? Colors.black87 : Colors.black,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          timeString,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isRead ? Colors.grey : Colors.blueGrey,
-                            fontWeight: isRead ? FontWeight.normal : FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification['body'] ?? '',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                        height: 1.3,
+              const SizedBox(height: 8),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.copy),
+                label: const Text('Copy index URL'),
+                onPressed: () async {
+                  await Clipboard.setData(ClipboardData(text: url));
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Index URL copied to clipboard'),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+                    );
+                  }
+                },
               ),
-              if (!isRead)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8.0),
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final ar = widget.ctrl.isArabic;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(ar ? "الإشعارات" : "Notifications"),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.done_all),
-            tooltip: ar ? 'تحديد الكل كمقروء' : 'Mark all as read',
-            onPressed: () async {
-              await _notificationService.clearAllNotifications();
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        ar ? 'تم تحديد الكل كمقروء' : 'All marked as read'),
-                    duration: const Duration(seconds: 1),
-                  ),
-                );
-              }
-            },
-          )
+  Widget _buildEmpty() {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.notifications_none, size: 64, color: Colors.grey),
+          SizedBox(height: 12),
+          Text('No notifications yet', style: TextStyle(color: Colors.grey)),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
+    );
+  }
+
+  Future<void> _onMarkAsRead(String id) async {
+    try {
+      await _notificationService.markAsRead(id);
+      // لا حاجة لـ setState لأن الستريم سيعيد البناء عند تغيّر المستندات.
+    } catch (e) {
+      debugPrint('Error markAsRead: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to mark as read: $e')));
+      }
+    }
+  }
+
+  Future<void> _onClearAll() async {
+    try {
+      await _notificationService.clearAllNotifications();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All notifications marked as read')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error clearAllNotifications: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to clear notifications: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Notifications'),
+        actions: [
+          IconButton(
+            tooltip: 'Mark all as read',
+            onPressed: _onClearAll,
+            icon: const Icon(Icons.done_all),
+          ),
+        ],
+      ),
+      body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: _notificationService.getNotificationsStream(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            // show error card but avoid crashing; user can still copy index link if present
+            return _buildErrorCard(snapshot.error);
+          }
+
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snapshot.hasError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    ar ? "حدث خطأ" : "Something went wrong",
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            );
-          }
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.notifications_none,
-                      size: 64, color: Colors.grey.shade300),
-                  const SizedBox(height: 16),
-                  Text(
-                    ar ? "لا توجد إشعارات" : "No notifications yet",
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ],
-              ),
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 12),
+
+          final docs = snapshot.data ?? [];
+
+          if (docs.isEmpty) return _buildEmpty();
+
+          return ListView.separated(
+            padding: const EdgeInsets.all(12),
             itemCount: docs.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
-              final id = docs[index].id;
-              return _buildNotificationCard(data, id);
+              final Map<String, dynamic> data = Map<String, dynamic>.from(
+                docs[index],
+              );
+
+              final id = data['id']?.toString() ?? '';
+              final title = (data['title'] ?? 'Notification').toString();
+              final body = (data['body'] ?? '').toString();
+              final ts = data['timestamp'];
+              final isBroadcast = data['isBroadcast'] == true;
+              final isRead = data['read'] == true;
+
+              return ListTile(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                tileColor: isRead ? Colors.grey[850] : Colors.grey[900],
+                leading: CircleAvatar(
+                  backgroundColor: Colors.grey[800],
+                  child: Icon(
+                    isBroadcast ? Icons.sports_soccer : Icons.notifications,
+                    color: Colors.white,
+                  ),
+                ),
+                title: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 6),
+                    Text(body, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 6),
+                    Text(
+                      _formatTimestamp(ts),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
+                trailing: isRead
+                    ? const Icon(Icons.check, color: Colors.green)
+                    : IconButton(
+                        icon: const Icon(Icons.mark_email_read),
+                        tooltip: 'Mark as read',
+                        onPressed: () => _onMarkAsRead(id),
+                      ),
+                onTap: () {
+                  if (!isRead) _onMarkAsRead(id);
+                  final matchId = data['matchId'];
+                  if (matchId != null && matchId.toString().isNotEmpty) {
+                    // Navigator.pushNamed(context, '/matchDetails', arguments: matchId);
+                  }
+                },
+              );
             },
           );
         },

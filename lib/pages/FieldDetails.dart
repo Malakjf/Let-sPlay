@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart' show kIsWeb, Uint8List;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:letsplay/widgets/App_Bottom_Nav.dart';
 import 'package:letsplay/widgets/logobutton.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'PhotoViewer.dart';
@@ -266,7 +265,6 @@ class _FieldDetailsScreenState extends State<FieldDetailsScreen> {
                 ],
               ),
             ),
-            bottomNavigationBar: const AppBottomNav(index: 3),
           ),
         );
       },

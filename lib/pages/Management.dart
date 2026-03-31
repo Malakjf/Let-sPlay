@@ -85,7 +85,8 @@ class ManagementScreen extends StatelessWidget {
                       ),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => AddMatchScreen(ctrl: ctrl),
+                          builder: (_) =>
+                              AddMatchScreen(ctrl: ctrl, match: const {}),
                         ),
                       ),
                     ),

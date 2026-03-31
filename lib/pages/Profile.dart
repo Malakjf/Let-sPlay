@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:letsplay/utils/permissions.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_permission.dart' show UserPermission;
@@ -99,14 +100,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Handle error state - show friendly error instead of infinite loading
             if (snapshot.hasError) {
               final errorString = snapshot.error.toString();
-              final isPermissionDenied = errorString.contains('permission-denied') || 
-                                         errorString.contains('PERMISSION_DENIED');
-              
+              final isPermissionDenied =
+                  errorString.contains('permission-denied') ||
+                  errorString.contains('PERMISSION_DENIED');
+
               // For permission denied (guest), show limited profile with login prompt
               if (isPermissionDenied) {
                 return _buildLimitedProfile(context, ar, theme, userId);
               }
-              
+
               // For other errors, show error message
               return _buildErrorState(context, ar, theme, errorString);
             }
@@ -351,33 +353,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildSocialIcons(ThemeData theme) {
+    // Social links provided by user
+    final instagram = Uri.parse(
+      'https://www.instagram.com/letsplay_jo?igsh=Z295YjM2NTFqOXdu',
+    );
+    final facebook = Uri.parse(
+      'https://www.facebook.com/share/1BzzEhVUK2/?mibextid=wwXIfr',
+    );
+    final whatsapp = Uri.parse(
+      'https://chat.whatsapp.com/FLrxj81ciwj2AQxcLfpEwz?mode=hqctcli',
+    );
+
+    Future<void> open(Uri uri) async {
+      try {
+        if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Could not open link')));
+        }
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Error opening link')));
+      }
+    }
+
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 12,
       children: [
-        Icon(
-          FontAwesomeIcons.instagram,
-          color:
-              theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
-              Colors.grey.withOpacity(0.7),
+        IconButton(
+          icon: Icon(
+            FontAwesomeIcons.whatsapp,
+            color:
+                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                Colors.grey.withOpacity(0.7),
+          ),
+          onPressed: () => open(whatsapp),
+          tooltip: 'WhatsApp',
         ),
-        Icon(
-          FontAwesomeIcons.facebook,
-          color:
-              theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
-              Colors.grey.withOpacity(0.7),
+        IconButton(
+          icon: Icon(
+            FontAwesomeIcons.instagram,
+            color:
+                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                Colors.grey.withOpacity(0.7),
+          ),
+          onPressed: () => open(instagram),
+          tooltip: 'Instagram',
         ),
-        Icon(
-          FontAwesomeIcons.twitter,
-          color:
-              theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
-              Colors.grey.withOpacity(0.7),
-        ),
-        Icon(
-          FontAwesomeIcons.whatsapp,
-          color:
-              theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
-              Colors.grey.withOpacity(0.7),
+        IconButton(
+          icon: Icon(
+            FontAwesomeIcons.facebook,
+            color:
+                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+                Colors.grey.withOpacity(0.7),
+          ),
+          onPressed: () => open(facebook),
+          tooltip: 'Facebook',
         ),
       ],
     );
@@ -628,7 +661,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (mounted) {
                 Navigator.of(
                   context,
-                ).pushNamedAndRemoveUntil('/splash', (route) => false);
+                ).pushNamedAndRemoveUntil('/login', (route) => false);
               }
             }
           } catch (e) {
@@ -670,7 +703,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Build error state widget with retry option
-  Widget _buildErrorState(BuildContext context, bool ar, ThemeData theme, String error) {
+  Widget _buildErrorState(
+    BuildContext context,
+    bool ar,
+    ThemeData theme,
+    String error,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -707,12 +745,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Build empty state widget
-  Widget _buildEmptyState(BuildContext context, bool ar, ThemeData theme, String userId) {
+  Widget _buildEmptyState(
+    BuildContext context,
+    bool ar,
+    ThemeData theme,
+    String userId,
+  ) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.person_outline, color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5), size: 64),
+          Icon(
+            Icons.person_outline,
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5),
+            size: 64,
+          ),
           const SizedBox(height: 16),
           Text(
             ar ? 'لا توجد بيانات' : 'No data available',
@@ -724,7 +771,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   /// Build limited profile for guest users (permission denied)
-  Widget _buildLimitedProfile(BuildContext context, bool ar, ThemeData theme, String userId) {
+  Widget _buildLimitedProfile(
+    BuildContext context,
+    bool ar,
+    ThemeData theme,
+    String userId,
+  ) {
     return Directionality(
       textDirection: ar ? TextDirection.rtl : TextDirection.ltr,
       child: Scaffold(
@@ -788,12 +840,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        ar 
-                          ? 'يرجى تسجيل الدخول للوصول إلى ملفات اللاعبين والمميزات الكاملة'
-                          : 'Please login to access player profiles and full features',
+                        ar
+                            ? 'يرجى تسجيل الدخول للوصول إلى ملفات اللاعبين والمميزات الكاملة'
+                            : 'Please login to access player profiles and full features',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                          color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                            0.7,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -802,7 +856,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         icon: const Icon(Icons.login),
                         label: Text(ar ? 'تسجيل الدخول' : 'Login'),
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ],

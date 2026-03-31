@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../services/language.dart';
-import '../widgets/App_Bottom_Nav.dart' show AppBottomNav;
 import '../widgets/GlassContainer.dart';
 
 class PrivacyPolicyPage extends StatelessWidget {
@@ -103,7 +102,6 @@ class PrivacyPolicyPage extends StatelessWidget {
                 ),
               ),
             ),
-            bottomNavigationBar: const AppBottomNav(index: 3),
           ),
         );
       },

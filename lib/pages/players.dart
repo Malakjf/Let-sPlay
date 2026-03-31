@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:letsplay/widgets/App_Bottom_Nav.dart';
 import 'package:letsplay/widgets/LogoButton.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -289,9 +288,10 @@ class _PlayersScreenState extends State<PlayersScreen> {
         // Handle error state - prevents indefinite loading
         if (snapshot.hasError) {
           final errorStr = snapshot.error.toString();
-          final isPermissionDenied = errorStr.contains('permission-denied') || 
-                                     errorStr.contains('PERMISSION_DENIED');
-          
+          final isPermissionDenied =
+              errorStr.contains('permission-denied') ||
+              errorStr.contains('PERMISSION_DENIED');
+
           return Scaffold(
             body: Center(
               child: Padding(
@@ -320,7 +320,9 @@ class _PlayersScreenState extends State<PlayersScreen> {
                           ? (ar ? 'يرجى تسجيل الدخول' : 'Please login')
                           : (ar ? 'حاول مرة أخرى' : 'Please try again'),
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        color: theme.textTheme.bodyMedium?.color?.withOpacity(
+                          0.7,
+                        ),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -398,7 +400,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
                   actions: const [LogoButton()],
                 ),
                 body: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
                   child: Column(
                     children: [
                       const SizedBox(height: 12),
@@ -608,10 +610,10 @@ class _PlayersScreenState extends State<PlayersScreen> {
 
                       const SizedBox(height: 12),
 
-                      // Header labels row
+                      // Header labels row (sticky look)
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
+                          horizontal: 8,
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
@@ -619,47 +621,72 @@ class _PlayersScreenState extends State<PlayersScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Expanded(
                               flex: 4,
                               child: Text(
                                 ar ? 'الاسم' : 'Name',
-                                style: theme.textTheme.titleMedium,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontSize: 15,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
+                            const SizedBox(width: 6),
                             Expanded(
                               flex: 1,
                               child: Center(
                                 child: Text(
                                   ar ? 'الرقم' : 'No.',
-                                  style: theme.textTheme.titleMedium,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 6),
                             Expanded(
                               flex: 1,
                               child: Center(
                                 child: Text(
                                   ar ? 'اللون' : 'Color',
-                                  style: theme.textTheme.titleMedium,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
-                            Expanded(
-                              flex: 3,
-                              child: Center(
-                                child: Text(
-                                  _selectedFilter,
-                                  style: theme.textTheme.titleMedium,
-                                ),
-                              ),
-                            ),
+                            const SizedBox(width: 6),
                             Expanded(
                               flex: 2,
                               child: Center(
                                 child: Text(
+                                  _selectedFilter,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              flex: 1,
+                              child: Center(
+                                child: Text(
                                   _selectedMetric,
-                                  style: theme.textTheme.titleMedium,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontSize: 14,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ),
@@ -697,7 +724,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
                             : ListView.separated(
                                 itemCount: displayPlayers.length,
                                 separatorBuilder: (context, index) =>
-                                    const SizedBox(height: 8),
+                                    const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final player = displayPlayers[index];
                                   return _PlayerRow(
@@ -712,7 +739,6 @@ class _PlayersScreenState extends State<PlayersScreen> {
                     ],
                   ),
                 ),
-                bottomNavigationBar: const AppBottomNav(index: 0),
               ),
             );
           },
@@ -929,13 +955,27 @@ class _PlayerRowState extends State<_PlayerRow> {
           _metricController.text = currentMetric.toString();
         }
 
+        // Responsive sizing values (smaller on narrow screens)
+        final sw = MediaQuery.of(context).size.width;
+        final avatarRadius = sw > 600 ? 22.0 : (sw < 420 ? 14.0 : 18.0);
+        final numberBoxW = (sw * 0.07).clamp(22.0, 40.0);
+        final numberBoxH = (sw * 0.06).clamp(20.0, 34.0);
+        final colorBoxSize = (sw * 0.06).clamp(18.0, 30.0);
+        final btnW = (sw * 0.05).clamp(20.0, 32.0);
+        final btnH = (sw * 0.045).clamp(18.0, 28.0);
+        final statBoxW = (sw * 0.06).clamp(20.0, 34.0);
+        final metricBoxW = (sw * 0.10).clamp(40.0, 64.0);
+
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          margin: EdgeInsets.symmetric(vertical: sw < 420 ? 3 : 4),
+          padding: EdgeInsets.all(sw < 420 ? 8 : 10),
           decoration: BoxDecoration(
             color: tileBg,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Name + avatar
               Expanded(
@@ -943,7 +983,7 @@ class _PlayerRowState extends State<_PlayerRow> {
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 20,
+                      radius: avatarRadius,
                       backgroundColor: widget.player.teamColor,
                       backgroundImage:
                           (widget.player.photoUrl != null &&
@@ -962,15 +1002,15 @@ class _PlayerRowState extends State<_PlayerRow> {
                               !widget.player.photoUrl!.startsWith('http'))
                           ? Text(
                               widget.player.avatarInitials,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 12,
+                                fontSize: sw < 420 ? 10 : 12,
                                 fontWeight: FontWeight.w600,
                               ),
                             )
                           : null,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -979,14 +1019,20 @@ class _PlayerRowState extends State<_PlayerRow> {
                             widget.player.name,
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
+                              fontSize: sw < 420 ? 13 : null,
                             ),
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Age: ${widget.player.age} | ${widget.player.position}',
-                            style: TextStyle(color: mutedText, fontSize: 12),
+                            style: TextStyle(
+                              color: mutedText,
+                              fontSize: sw < 420 ? 11 : 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -996,12 +1042,17 @@ class _PlayerRowState extends State<_PlayerRow> {
               ),
 
               // Number
-              Expanded(
+              Flexible(
                 flex: 1,
+                fit: FlexFit.loose,
                 child: Center(
                   child: Container(
-                    width: 40,
-                    height: 36,
+                    constraints: BoxConstraints(
+                      minWidth: 20,
+                      maxWidth: numberBoxW,
+                      minHeight: numberBoxH,
+                      maxHeight: numberBoxH,
+                    ),
                     decoration: BoxDecoration(
                       color: tileBg,
                       borderRadius: BorderRadius.circular(8),
@@ -1012,6 +1063,7 @@ class _PlayerRowState extends State<_PlayerRow> {
                         style: TextStyle(
                           color: theme.textTheme.bodyMedium?.color,
                           fontWeight: FontWeight.bold,
+                          fontSize: sw < 420 ? 12 : null,
                         ),
                       ),
                     ),
@@ -1020,14 +1072,19 @@ class _PlayerRowState extends State<_PlayerRow> {
               ),
 
               // Color box
-              Expanded(
+              Flexible(
                 flex: 1,
+                fit: FlexFit.loose,
                 child: GestureDetector(
                   onTap: _showTeamSelectionDialog,
                   child: Center(
                     child: Container(
-                      width: 36,
-                      height: 36,
+                      constraints: BoxConstraints(
+                        minWidth: 18,
+                        maxWidth: colorBoxSize,
+                        minHeight: 18,
+                        maxHeight: colorBoxSize,
+                      ),
                       decoration: BoxDecoration(
                         color: widget.player.teamColor,
                         borderRadius: BorderRadius.circular(6),
@@ -1038,9 +1095,10 @@ class _PlayerRowState extends State<_PlayerRow> {
                       child: Center(
                         child: Text(
                           '${widget.player.team}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
+                            fontSize: sw < 420 ? 11 : null,
                           ),
                         ),
                       ),
@@ -1050,37 +1108,44 @@ class _PlayerRowState extends State<_PlayerRow> {
               ),
 
               // Stats display with + and - buttons
-              Expanded(
-                flex: 3,
+              Flexible(
+                flex: 2,
+                fit: FlexFit.loose,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Minus button - calls store method
-                    GestureDetector(
-                      onTap: () {
-                        statsStore.decrementStat(
-                          widget.matchId,
-                          widget.player.id,
-                          widget.selectedFilter,
-                        );
-                        _updateGkAttributes(context, statsStore);
-                      },
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: tileBg,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: theme.dividerColor),
+                    SizedBox(
+                      width: btnW,
+                      height: btnH,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: tileBg,
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            side: BorderSide(color: theme.dividerColor),
+                          ),
                         ),
-                        child: const Icon(Icons.remove, size: 16),
+                        onPressed: () {
+                          statsStore.decrementStat(
+                            widget.matchId,
+                            widget.player.id,
+                            widget.selectedFilter,
+                          );
+                          _updateGkAttributes(context, statsStore);
+                        },
+                        child: const Icon(Icons.remove, size: 14),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Current count from store
+                    const SizedBox(width: 4),
                     Container(
-                      width: 36,
-                      height: 28,
+                      constraints: BoxConstraints(
+                        minWidth: 18,
+                        maxWidth: statBoxW,
+                        minHeight: btnH,
+                        maxHeight: btnH,
+                      ),
                       decoration: BoxDecoration(
                         color: tileBg,
                         borderRadius: BorderRadius.circular(6),
@@ -1090,38 +1155,42 @@ class _PlayerRowState extends State<_PlayerRow> {
                           '$currentStat',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
+                            fontSize: sw < 420 ? 12 : null,
                             color:
                                 widget.selectedFilter ==
                                     PlayerStatsStore.statGoalsReceived
                                 ? Colors.red
                                 : (widget.selectedFilter ==
-                                      PlayerStatsStore.statCleanSheet)
-                                ? Colors.green
-                                : null,
+                                          PlayerStatsStore.statCleanSheet
+                                      ? Colors.green
+                                      : null),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Plus button - calls store method
-                    GestureDetector(
-                      onTap: () {
-                        statsStore.incrementStat(
-                          widget.matchId,
-                          widget.player.id,
-                          widget.selectedFilter,
-                        );
-                        _updateGkAttributes(context, statsStore);
-                      },
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: tileBg,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: theme.dividerColor),
+                    const SizedBox(width: 4),
+                    SizedBox(
+                      width: btnW,
+                      height: btnH,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: tileBg,
+                          elevation: 0,
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            side: BorderSide(color: theme.dividerColor),
+                          ),
                         ),
-                        child: const Icon(Icons.add, size: 16),
+                        onPressed: () {
+                          statsStore.incrementStat(
+                            widget.matchId,
+                            widget.player.id,
+                            widget.selectedFilter,
+                          );
+                          _updateGkAttributes(context, statsStore);
+                        },
+                        child: const Icon(Icons.add, size: 14),
                       ),
                     ),
                   ],
@@ -1129,12 +1198,16 @@ class _PlayerRowState extends State<_PlayerRow> {
               ),
 
               // Metric input - updates store
-              Expanded(
-                flex: 2,
+              Flexible(
+                flex: 1,
+                fit: FlexFit.loose,
                 child: Center(
                   child: Container(
-                    constraints: const BoxConstraints(maxWidth: 60),
-                    height: 36,
+                    constraints: BoxConstraints(
+                      minWidth: 36,
+                      maxWidth: metricBoxW,
+                    ),
+                    height: metricBoxW > 72 ? 36 : 30,
                     decoration: BoxDecoration(
                       color: tileBg,
                       borderRadius: BorderRadius.circular(8),
@@ -1145,13 +1218,19 @@ class _PlayerRowState extends State<_PlayerRow> {
                       keyboardType: TextInputType.number,
                       style: TextStyle(
                         color: theme.textTheme.bodyMedium?.color,
-                        fontSize: 14,
+                        fontSize: sw < 420 ? 12 : 14,
                         fontWeight: FontWeight.bold,
                       ),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintStyle: TextStyle(color: mutedText, fontSize: 12),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+                        hintStyle: TextStyle(
+                          color: mutedText,
+                          fontSize: sw < 420 ? 11 : 12,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 4,
+                          horizontal: 6,
+                        ),
                       ),
                       onChanged: (value) {
                         final intValue = int.tryParse(value) ?? 0;

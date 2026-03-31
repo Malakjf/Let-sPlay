@@ -4,6 +4,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math' as math;
 
 import '../services/language.dart';
 import '../services/matches_service.dart';
@@ -42,6 +43,50 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadJoinedMatches();
     // Load matches from Firestore - only if user is logged in
     _loadMatchesIfAuthenticated();
+  }
+
+  String _computeMatchStatus(Map<String, dynamic> match) {
+    try {
+      final now = DateTime.now();
+      final matchDate = parseFirestoreDate(match['date']);
+
+      // compute end time using duration (minutes)
+      int durationMin = 90;
+      if (match['duration'] is int) {
+        durationMin = match['duration'];
+      } else if (match['duration'] is String) {
+        durationMin = int.tryParse(match['duration']) ?? 90;
+      } else if (match['duration'] is num) {
+        durationMin = (match['duration'] as num).toInt();
+      }
+      final matchEnd = matchDate.add(Duration(minutes: durationMin));
+
+      // open registry date (optional)
+      DateTime? openDate;
+      if (match.containsKey('openRegistryDate') &&
+          match['openRegistryDate'] != null) {
+        openDate = parseFirestoreDate(match['openRegistryDate']);
+      }
+
+      if (openDate != null) {
+        if (now.isBefore(openDate)) return 'upcoming';
+        if (now.isBefore(matchDate)) return 'open';
+      } else {
+        // no open date: consider registry open until match starts
+        if (now.isBefore(matchDate)) return 'open';
+      }
+
+      if (now.isAfter(matchEnd) || now.isAtSameMomentAs(matchEnd)) {
+        return 'ended';
+      }
+      if (now.isAfter(matchDate) || now.isAtSameMomentAs(matchDate)) {
+        return 'inprogress';
+      }
+
+      return 'upcoming';
+    } catch (e) {
+      return 'upcoming';
+    }
   }
 
   /// 🔒 Load matches only if user is authenticated
@@ -89,7 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
       debugPrint('⚠️ Guest mode - skipping notifications load');
       return;
     }
-    
+
     try {
       final notifications = await NotificationService().getNotifications();
       final unreadCount = notifications
@@ -198,13 +243,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
-    
+
     // Calculate responsive values
     final horizontalPadding = screenWidth * 0.05; // 5% of screen width
     final verticalPadding = screenHeight * 0.02; // 2% of screen height
     final titleFontSize = screenWidth > 600 ? 24.0 : 20.0;
     final avatarRadius = screenWidth > 600 ? 24.0 : 20.0;
-    
+
     return AnimatedBuilder(
       animation: Listenable.merge([widget.ctrl, MatchesService()]),
       builder: (context, child) {
@@ -221,6 +266,35 @@ class _HomeScreenState extends State<HomeScreen> {
             return !title.contains('private') && !title.contains('academy');
           }).toList();
         }
+
+        // Filter matches based on selected calendar day
+        if (_calendarSelectedDay != null) {
+          allMatches = allMatches.where((m) {
+            final mDate = parseFirestoreDate(m['date']);
+            return isSameDay(mDate, _calendarSelectedDay);
+          }).toList();
+        }
+
+        // Remove matches that ended more than 1 week ago
+        final now = DateTime.now();
+        allMatches = allMatches.where((m) {
+          try {
+            final matchDate = parseFirestoreDate(m['date']);
+            int durationMin = 90;
+            if (m['duration'] is int) {
+              durationMin = m['duration'];
+            } else if (m['duration'] is String) {
+              durationMin = int.tryParse(m['duration']) ?? 90;
+            } else if (m['duration'] is num) {
+              durationMin = (m['duration'] as num).toInt();
+            }
+            final matchEnd = matchDate.add(Duration(minutes: durationMin));
+            // keep match if it ended within the last 7 days or is not ended yet
+            return matchEnd.isAfter(now.subtract(const Duration(days: 7)));
+          } catch (e) {
+            return true; // keep if any parsing fails
+          }
+        }).toList();
 
         // Find the joined match (next match)
 
@@ -245,9 +319,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       // Header section (moved from AppBar)
                       Padding(
-                        padding: EdgeInsets.only(
-                          bottom: screenHeight * 0.015,
-                        ),
+                        padding: EdgeInsets.only(bottom: screenHeight * 0.015),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -261,37 +333,41 @@ class _HomeScreenState extends State<HomeScreen> {
                                     backgroundImage:
                                         _profilePicUrl != null &&
                                             _profilePicUrl!.isNotEmpty
-                                            ? NetworkImage(
-                                                _profilePicUrl!.contains('?')
-                                                    ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
-                                                    : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
-                                              )
-                                            : null,
+                                        ? NetworkImage(
+                                            _profilePicUrl!.contains('?')
+                                                ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
+                                                : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
+                                          )
+                                        : null,
                                     onBackgroundImageError:
                                         _profilePicUrl != null &&
                                             _profilePicUrl!.isNotEmpty
-                                            ? (exception, stackTrace) {
-                                                debugPrint(
-                                                  '❌ Avatar load error: $exception',
-                                                );
-                                              }
-                                            : null,
+                                        ? (exception, stackTrace) {
+                                            debugPrint(
+                                              '❌ Avatar load error: $exception',
+                                            );
+                                          }
+                                        : null,
                                     child:
                                         _profilePicUrl == null ||
                                             _profilePicUrl!.isEmpty
-                                            ? Text(
-                                                _username.isNotEmpty
-                                                    ? _username
-                                                          .substring(0, 1)
-                                                          .toUpperCase()
-                                                    : 'U',
-                                                style: TextStyle(
-                                                  color: theme.colorScheme.primary,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: MediaQuery.textScaleFactorOf(context) * 16,
-                                                ),
-                                              )
-                                            : null,
+                                        ? Text(
+                                            _username.isNotEmpty
+                                                ? _username
+                                                      .substring(0, 1)
+                                                      .toUpperCase()
+                                                : 'U',
+                                            style: TextStyle(
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize:
+                                                  MediaQuery.textScaleFactorOf(
+                                                    context,
+                                                  ) *
+                                                  16,
+                                            ),
+                                          )
+                                        : null,
                                   ),
                                   SizedBox(width: screenWidth * 0.025),
                                   Expanded(
@@ -299,7 +375,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       '${_welcome(ar)} $_username',
                                       style: GoogleFonts.spaceGrotesk(
                                         color:
-                                            theme.textTheme.displayLarge?.color ??
+                                            theme
+                                                .textTheme
+                                                .displayLarge
+                                                ?.color ??
                                             Colors.white,
                                         fontWeight: FontWeight.bold,
                                         fontSize: titleFontSize,
@@ -317,7 +396,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     children: [
                                       Icon(
                                         Icons.notifications_none,
-                                        color: theme.textTheme.bodyMedium?.color,
+                                        color:
+                                            theme.textTheme.bodyMedium?.color,
                                         size: screenWidth > 600 ? 28 : 24,
                                       ),
                                       if (_unreadNotificationsCount > 0)
@@ -328,9 +408,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                             padding: const EdgeInsets.all(2),
                                             decoration: BoxDecoration(
                                               color: Colors.red,
-                                              borderRadius: BorderRadius.circular(
-                                                10,
-                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                             ),
                                             constraints: const BoxConstraints(
                                               minWidth: 16,
@@ -341,7 +420,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   .toString(),
                                               style: TextStyle(
                                                 color: Colors.white,
-                                                fontSize: MediaQuery.textScaleFactorOf(context) * 10,
+                                                fontSize:
+                                                    MediaQuery.textScaleFactorOf(
+                                                      context,
+                                                    ) *
+                                                    10,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                               textAlign: TextAlign.center,
@@ -373,7 +456,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       _calendar(context, ar, screenWidth, screenHeight),
-                      SizedBox(height: screenHeight * 0.03), // Clean spacing to matches section
+                      SizedBox(
+                        height: screenHeight * 0.03,
+                      ), // Clean spacing to matches section
                       // Your Matches Section (ALL joined matches)
                       if (_allJoinedMatches.isNotEmpty) ...[
                         SizedBox(height: screenHeight * 0.025),
@@ -396,7 +481,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 vertical: screenHeight * 0.005,
                               ),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withOpacity(0.2),
+                                color: theme.colorScheme.primary.withOpacity(
+                                  0.2,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
@@ -404,7 +491,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(
                                   color: theme.colorScheme.primary,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: MediaQuery.textScaleFactorOf(context) * 14,
+                                  fontSize:
+                                      MediaQuery.textScaleFactorOf(context) *
+                                      14,
                                 ),
                               ),
                             ),
@@ -427,7 +516,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         _near(ar),
                         style: GoogleFonts.spaceGrotesk(
                           color:
-                              theme.textTheme.displayLarge?.color ?? Colors.white,
+                              theme.textTheme.displayLarge?.color ??
+                              Colors.white,
                           fontSize: titleFontSize,
                           fontWeight: FontWeight.bold,
                         ),
@@ -552,7 +642,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     final groupedMatches = _groupMatchesByDate(matches);
     final widgets = <Widget>[];
-    
+
     // Responsive values
     final headerFontSize = screenWidth > 600 ? 20.0 : 18.0;
     final cardMarginBottom = screenHeight * 0.025;
@@ -633,23 +723,44 @@ class _HomeScreenState extends State<HomeScreen> {
     required bool isJoined,
   }) {
     if (isJoined) {
-      return _buildNextMatchCard(context, ar, match, theme, screenWidth, screenHeight);
+      return _buildNextMatchCard(
+        context,
+        ar,
+        match,
+        theme,
+        screenWidth,
+        screenHeight,
+      );
     } else {
       return _nearCard(context, ar, match, screenWidth, screenHeight);
     }
   }
 
   /* ---------- calendar widget ---------- */
-  Widget _calendar(BuildContext context, bool ar, double screenWidth, double screenHeight) {
+  Widget _calendar(
+    BuildContext context,
+    bool ar,
+    double screenWidth,
+    double screenHeight,
+  ) {
     final theme = Theme.of(context);
     final matchesService = MatchesService();
     final allMatches = matchesService.matches;
-    
+
     // Responsive sizing for calendar
     final rowHeight = screenHeight * 0.055; // ~44px responsive
     final headerFontSize = screenWidth > 600 ? 18.0 : 16.0;
     final dayFontSize = screenWidth > 600 ? 14.0 : 12.0;
-    
+
+    // Estimate the calendar height from row count and header/padding and cap it
+    final estimatedCalendarHeight =
+        (rowHeight * 6) + 140; // 6 rows + header/padding
+    // Allow a slightly larger cap to avoid tiny overflow on smaller devices
+    final calendarHeight = math.min(
+      screenHeight * 0.5,
+      estimatedCalendarHeight,
+    );
+
     return Container(
       padding: EdgeInsets.all(screenWidth * 0.04),
       decoration: BoxDecoration(
@@ -663,145 +774,310 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: screenHeight * 0.42,
-        ),
-        child: TableCalendar(
-          firstDay: DateTime.utc(2020, 1, 1),
-          lastDay: DateTime.utc(2030, 12, 31),
-          focusedDay: _calendarFocusedDay,
-          calendarFormat: CalendarFormat.month,
-          sixWeekMonthsEnforced: true,
-        rowHeight: rowHeight,
-        selectedDayPredicate: (d) => isSameDay(_calendarSelectedDay, d),
-        onDaySelected: (s, f) => setState(() {
-          _calendarSelectedDay = s;
-          _calendarFocusedDay = f;
-        }),
-        eventLoader: (day) {
-          final matchesOnDay = allMatches.where((match) {
-            final matchDate = parseFirestoreDate(match['date']);
-            return isSameDay(matchDate, day);
-          }).toList();
-
-          if (matchesOnDay.isNotEmpty) {
-            debugPrint(
-              'Found ${matchesOnDay.length} matches on ${day.toString()}',
-            );
-          }
-
-          return matchesOnDay;
-        },
-        calendarBuilders: CalendarBuilders(
-          markerBuilder: (context, date, events) {
-            if (events.isEmpty) return null;
-            final eventCount = events.length;
-            return Positioned(
-              bottom: 2,
-              right: 2,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.colorScheme.primary.withOpacity(0.3),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    )
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.sports_soccer,
-                      size: 12,
-                      color: Colors.white,
+      child: SizedBox(
+        height: calendarHeight,
+        child: Column(
+          children: [
+            // Custom header (keeps title and chevrons unflipped)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.chevron_left_rounded,
+                      color: Colors.white70,
+                      size: 28,
                     ),
-                    if (eventCount > 1) ...[
-                      const SizedBox(width: 2),
-                      Text(
-                        '${eventCount > 9 ? '9+' : eventCount}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                    onPressed: () {
+                      setState(() {
+                        _calendarFocusedDay = DateTime(
+                          _calendarFocusedDay.year,
+                          _calendarFocusedDay.month - 1,
+                          1,
+                        );
+                      });
+                    },
+                  ),
+                  Text(
+                    DateFormat('MMMM yyyy').format(_calendarFocusedDay),
+                    style: GoogleFonts.spaceGrotesk(
+                      color: theme.textTheme.bodyLarge?.color ?? Colors.white,
+                      fontSize: headerFontSize,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.white70,
+                      size: 28,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _calendarFocusedDay = DateTime(
+                          _calendarFocusedDay.year,
+                          _calendarFocusedDay.month + 1,
+                          1,
+                        );
+                      });
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // Flipped calendar grid
+            Expanded(
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()..scale(-1.0, 1.0),
+                child: TableCalendar(
+                  headerVisible: false,
+                  firstDay: DateTime.utc(2020, 1, 1),
+                  lastDay: DateTime.utc(2030, 12, 31),
+                  focusedDay: _calendarFocusedDay,
+                  calendarFormat: CalendarFormat.month,
+                  sixWeekMonthsEnforced: true,
+                  rowHeight: rowHeight,
+                  selectedDayPredicate: (d) =>
+                      isSameDay(_calendarSelectedDay, d),
+                  onDaySelected: (s, f) => setState(() {
+                    _calendarSelectedDay = s;
+                    _calendarFocusedDay = f;
+                  }),
+                  eventLoader: (day) {
+                    final matchesOnDay = allMatches.where((match) {
+                      final matchDate = parseFirestoreDate(match['date']);
+                      return isSameDay(matchDate, day);
+                    }).toList();
+
+                    if (matchesOnDay.isNotEmpty) {
+                      debugPrint(
+                        'Found ${matchesOnDay.length} matches on ${day.toString()}',
+                      );
+                    }
+
+                    return matchesOnDay;
+                  },
+                  calendarBuilders: CalendarBuilders(
+                    // Flip day-of-week labels and day numbers back to normal
+                    dowBuilder: (context, day) {
+                      final text = DateFormat.E().format(day);
+                      return Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()..scale(-1.0, 1.0),
+                        child: Center(
+                          child: Text(
+                            text,
+                            style: GoogleFonts.spaceGrotesk(
+                              color:
+                                  theme.textTheme.bodyMedium?.color ??
+                                  Colors.white70,
+                              fontSize: dayFontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
+                      );
+                    },
+                    defaultBuilder: (context, date, _) {
+                      return Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()..scale(-1.0, 1.0),
+                        child: Center(
+                          child: Text(
+                            '${date.day}',
+                            style: GoogleFonts.spaceGrotesk(
+                              color:
+                                  theme.textTheme.bodyMedium?.color ??
+                                  Colors.white70,
+                              fontSize: dayFontSize,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    todayBuilder: (context, date, _) {
+                      return Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()..scale(-1.0, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary,
+                                theme.colorScheme.primary.withOpacity(0.8),
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.colorScheme.primary.withOpacity(0.3),
+                              width: 2,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${date.day}',
+                            style: GoogleFonts.spaceGrotesk(
+                              color: Colors.white,
+                              fontSize: dayFontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    selectedBuilder: (context, date, _) {
+                      return Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()..scale(-1.0, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary,
+                                theme.colorScheme.secondary.withOpacity(0.7),
+                              ],
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '${date.day}',
+                            style: GoogleFonts.spaceGrotesk(
+                              color: theme.colorScheme.onPrimary,
+                              fontSize: dayFontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    markerBuilder: (context, date, events) {
+                      if (events.isEmpty) return null;
+                      final eventCount = events.length;
+                      return Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.identity()..scale(-1.0, 1.0),
+                        child: Positioned(
+                          bottom: 2,
+                          right: 2,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  theme.colorScheme.primary,
+                                  theme.colorScheme.secondary,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: theme.colorScheme.primary.withOpacity(
+                                    0.3,
+                                  ),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.sports_soccer,
+                                  size: 12,
+                                  color: Colors.white,
+                                ),
+                                if (eventCount > 1) ...[
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    '${eventCount > 9 ? '9+' : eventCount}',
+                                    style: const TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  calendarStyle: CalendarStyle(
+                    outsideDaysVisible: false,
+                    todayDecoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.primary.withOpacity(0.8),
+                        ],
                       ),
-                    ],
-                  ],
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: theme.colorScheme.primary.withOpacity(0.3),
+                        width: 2,
+                      ),
+                    ),
+                    selectedDecoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.colorScheme.primary,
+                          theme.colorScheme.secondary.withOpacity(0.7),
+                        ],
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    defaultTextStyle: GoogleFonts.spaceGrotesk(
+                      color:
+                          theme.textTheme.bodyMedium?.color ?? Colors.white70,
+                      fontSize: dayFontSize,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    weekendTextStyle: GoogleFonts.spaceGrotesk(
+                      color: theme.colorScheme.primary,
+                      fontSize: dayFontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    outsideTextStyle: TextStyle(
+                      color: Colors.grey.withOpacity(0.3),
+                      fontSize: dayFontSize - 1,
+                    ),
+                    markersMaxCount: 2,
+                    markerSize: 8.0,
+                  ),
+                  headerStyle: HeaderStyle(
+                    titleCentered: true,
+                    formatButtonVisible: false,
+                    titleTextStyle: GoogleFonts.spaceGrotesk(
+                      color: theme.textTheme.bodyLarge?.color ?? Colors.white,
+                      fontSize: headerFontSize,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    leftChevronIcon: const Icon(
+                      Icons.chevron_left_rounded,
+                      color: Colors.white70,
+                      size: 28,
+                    ),
+                    rightChevronIcon: const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.white70,
+                      size: 28,
+                    ),
+                  ),
                 ),
               ),
-            );
-          },
-        ),
-        calendarStyle: CalendarStyle(
-          outsideDaysVisible: false,
-          todayDecoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                theme.colorScheme.primary,
-                theme.colorScheme.primary.withOpacity(0.8),
-              ],
             ),
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: theme.colorScheme.primary.withOpacity(0.3),
-              width: 2,
-            ),
-          ),
-          selectedDecoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                theme.colorScheme.primary,
-                  theme.colorScheme.secondary.withOpacity(0.7),
-              ],
-            ),
-            shape: BoxShape.circle,
-          ),
-          defaultTextStyle: GoogleFonts.spaceGrotesk(
-            color: theme.textTheme.bodyMedium?.color ?? Colors.white70,
-            fontSize: dayFontSize,
-            fontWeight: FontWeight.w500,
-          ),
-          weekendTextStyle: GoogleFonts.spaceGrotesk(
-            color: theme.colorScheme.primary,
-            fontSize: dayFontSize,
-            fontWeight: FontWeight.bold,
-          ),
-          outsideTextStyle: TextStyle(
-            color: Colors.grey.withOpacity(0.3),
-            fontSize: dayFontSize - 1,
-          ),
-          markersMaxCount: 2,
-          markerSize: 8.0,
-        ),
-        headerStyle: HeaderStyle(
-          titleCentered: true,
-          formatButtonVisible: false,
-          titleTextStyle: GoogleFonts.spaceGrotesk(
-            color: theme.textTheme.bodyLarge?.color ?? Colors.white,
-            fontSize: headerFontSize,
-            fontWeight: FontWeight.w700,
-          ),
-          leftChevronIcon: const Icon(
-            Icons.chevron_left_rounded,
-            color: Colors.white70,
-            size: 28,
-          ),
-          rightChevronIcon: const Icon(
-            Icons.chevron_right_rounded,
-            color: Colors.white70,
-            size: 28,
-          ),
+          ],
         ),
       ),
-    )
     );
   }
 
@@ -831,7 +1107,7 @@ class _HomeScreenState extends State<HomeScreen> {
         hasPaid = p['hasPaid'] ?? false;
       }
     }
-    
+
     // Responsive values
     final titleFontSize = screenWidth > 600 ? 18.0 : 16.0;
     final iconSize = screenWidth > 600 ? 18.0 : 16.0;
@@ -842,7 +1118,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: () => _navigateToMatchDetails(context, match),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: horizontalPadding),
+        padding: EdgeInsets.symmetric(
+          vertical: verticalPadding,
+          horizontal: horizontalPadding,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -861,6 +1140,48 @@ class _HomeScreenState extends State<HomeScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Match status badge
+                (() {
+                  final status = _computeMatchStatus(match);
+                  Color bg;
+                  switch (status) {
+                    case 'upcoming':
+                      bg = Colors.blueGrey;
+                      break;
+                    case 'open':
+                      bg = Colors.green;
+                      break;
+                    case 'inprogress':
+                      bg = Colors.orange;
+                      break;
+                    case 'ended':
+                      bg = Colors.grey;
+                      break;
+                    default:
+                      bg = Colors.blueGrey;
+                  }
+
+                  return Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: bg.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: bg.withOpacity(0.2)),
+                    ),
+                    child: Text(
+                      status.toUpperCase(),
+                      style: TextStyle(
+                        color: bg,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    ),
+                  );
+                }()),
                 if (isAcademy) ...[
                   SizedBox(width: screenWidth * 0.02),
                   Container(
@@ -934,6 +1255,45 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
+                // Field photo thumbnail (if available)
+                (() {
+                  String? img;
+                  try {
+                    if (match['fieldPhotos'] is List &&
+                        (match['fieldPhotos'] as List).isNotEmpty) {
+                      final first = (match['fieldPhotos'] as List).first;
+                      if (first is String && first.isNotEmpty) img = first;
+                    }
+                    if (img == null && match['fieldData'] is Map) {
+                      final fd = match['fieldData'] as Map;
+                      if (fd['photos'] is List &&
+                          (fd['photos'] as List).isNotEmpty) {
+                        final first = (fd['photos'] as List).first;
+                        if (first is String && first.isNotEmpty) img = first;
+                      }
+                      if (img == null &&
+                          fd['image'] is String &&
+                          (fd['image'] as String).isNotEmpty) {
+                        img = fd['image'] as String;
+                      }
+                    }
+                  } catch (_) {}
+
+                  if (img == null) return const SizedBox.shrink();
+
+                  return Container(
+                    margin: EdgeInsets.only(left: screenWidth * 0.03),
+                    width: screenWidth * 0.18,
+                    height: screenWidth * 0.12,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      image: DecorationImage(
+                        image: NetworkImage(img),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                }()),
                 if (hasPaid) ...[
                   SizedBox(width: screenWidth * 0.02),
                   Container(
@@ -946,7 +1306,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.green.withOpacity(0.5)),
                     ),
-                    child: Text('✅', style: TextStyle(fontSize: MediaQuery.textScaleFactorOf(context) * 12)),
+                    child: Text(
+                      '✅',
+                      style: TextStyle(
+                        fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                      ),
+                    ),
                   ),
                 ],
               ],
@@ -1008,7 +1373,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             '${match['playersCount'] ?? 0}/${match['maxPlayers'] ?? 10}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
-                              fontSize: MediaQuery.textScaleFactorOf(context) * 14,
+                              fontSize:
+                                  MediaQuery.textScaleFactorOf(context) * 14,
                             ),
                           ),
                         ],
@@ -1064,7 +1430,13 @@ class _HomeScreenState extends State<HomeScreen> {
   /* ---------- no match card ---------- */
 
   /* ---------- near you card (flat design) ---------- */
-  Widget _nearCard(BuildContext context, bool ar, Map<String, dynamic> match, double screenWidth, double screenHeight) {
+  Widget _nearCard(
+    BuildContext context,
+    bool ar,
+    Map<String, dynamic> match,
+    double screenWidth,
+    double screenHeight,
+  ) {
     final theme = Theme.of(context);
     final matchId = match['id']?.toString();
     // Check if this match is in the user's joined matches list
@@ -1088,7 +1460,7 @@ class _HomeScreenState extends State<HomeScreen> {
         hasPaid = p['hasPaid'] ?? false;
       }
     }
-    
+
     // Responsive values
     final titleFontSize = screenWidth > 600 ? 18.0 : 16.0;
     final iconSize = screenWidth > 600 ? 18.0 : 16.0;
@@ -1099,7 +1471,10 @@ class _HomeScreenState extends State<HomeScreen> {
       onTap: () => _navigateToMatchDetails(context, match),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: verticalPadding, horizontal: horizontalPadding),
+        padding: EdgeInsets.symmetric(
+          vertical: verticalPadding,
+          horizontal: horizontalPadding,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1184,7 +1559,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           ar ? 'انضممت' : 'Joined',
                           style: TextStyle(
-                            fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                            fontSize:
+                                MediaQuery.textScaleFactorOf(context) * 12,
                             color: Colors.green,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1206,10 +1582,54 @@ class _HomeScreenState extends State<HomeScreen> {
                           color: Colors.green.withOpacity(0.5),
                         ),
                       ),
-                      child: Text('✅', style: TextStyle(fontSize: MediaQuery.textScaleFactorOf(context) * 12)),
+                      child: Text(
+                        '✅',
+                        style: TextStyle(
+                          fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                        ),
+                      ),
                     ),
                   ],
                 ],
+                // Field photo thumbnail for near card
+                (() {
+                  String? img;
+                  try {
+                    if (match['fieldPhotos'] is List &&
+                        (match['fieldPhotos'] as List).isNotEmpty) {
+                      final first = (match['fieldPhotos'] as List).first;
+                      if (first is String && first.isNotEmpty) img = first;
+                    }
+                    if (img == null && match['fieldData'] is Map) {
+                      final fd = match['fieldData'] as Map;
+                      if (fd['photos'] is List &&
+                          (fd['photos'] as List).isNotEmpty) {
+                        final first = (fd['photos'] as List).first;
+                        if (first is String && first.isNotEmpty) img = first;
+                      }
+                      if (img == null &&
+                          fd['image'] is String &&
+                          (fd['image'] as String).isNotEmpty) {
+                        img = fd['image'] as String;
+                      }
+                    }
+                  } catch (_) {}
+
+                  if (img == null) return const SizedBox.shrink();
+
+                  return Container(
+                    margin: EdgeInsets.only(left: screenWidth * 0.02),
+                    width: screenWidth * 0.18,
+                    height: screenWidth * 0.12,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      image: DecorationImage(
+                        image: NetworkImage(img),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  );
+                }()),
               ],
             ),
             SizedBox(height: screenHeight * 0.01),
@@ -1264,6 +1684,51 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ],
             ),
+            const SizedBox(height: 8),
+            // Status badge
+            (() {
+              final status = _computeMatchStatus(match);
+              Color bg;
+              switch (status) {
+                case 'upcoming':
+                  bg = Colors.blueGrey;
+                  break;
+                case 'open':
+                  bg = Colors.green;
+                  break;
+                case 'inprogress':
+                  bg = Colors.orange;
+                  break;
+                case 'ended':
+                  bg = Colors.grey;
+                  break;
+                default:
+                  bg = Colors.blueGrey;
+              }
+
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: bg.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: bg.withOpacity(0.2)),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      color: bg,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              );
+            }()),
             SizedBox(height: screenHeight * 0.015),
             // Players bar and action button
             Row(
@@ -1285,7 +1750,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             '${match['playersCount'] ?? 0}/${match['maxPlayers'] ?? 10}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
-                              fontSize: MediaQuery.textScaleFactorOf(context) * 14,
+                              fontSize:
+                                  MediaQuery.textScaleFactorOf(context) * 14,
                             ),
                           ),
                         ],
@@ -1309,7 +1775,69 @@ class _HomeScreenState extends State<HomeScreen> {
                 SizedBox(width: screenWidth * 0.04),
                 ElevatedButton.icon(
                   onPressed: isJoined
-                      ? () => _navigateToMatchDetails(context, match)
+                      ? () async {
+                          // Show options for joined users: View Details or Leave
+                          final choice = await showDialog<String>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: Text(
+                                ar ? 'خيارات المباراة' : 'Match Options',
+                              ),
+                              content: Text(
+                                ar
+                                    ? 'ماذا تريد أن تفعل؟'
+                                    : 'What would you like to do?',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, 'view'),
+                                  child: Text(
+                                    ar ? 'عرض التفاصيل' : 'View Details',
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, 'leave'),
+                                  child: Text(
+                                    ar ? 'مغادرة المباراة' : 'Leave Match',
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, ''),
+                                  child: Text(ar ? 'إلغاء' : 'Cancel'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (choice == 'view') {
+                            _navigateToMatchDetails(context, match);
+                          } else if (choice == 'leave') {
+                            // confirm leave
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (c) => AlertDialog(
+                                title: Text(ar ? 'تأكيد' : 'Confirm'),
+                                content: Text(
+                                  ar
+                                      ? 'هل أنت متأكد أنك تريد مغادرة هذه المباراة؟'
+                                      : 'Are you sure you want to leave this match?',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(c, false),
+                                    child: Text(ar ? 'إلغاء' : 'Cancel'),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(c, true),
+                                    child: Text(ar ? 'مغادرة' : 'Leave'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await _leaveMatch(match);
+                            }
+                          }
+                        }
                       : () => _joinToMatch(match),
                   icon: Icon(
                     isJoined ? Icons.info_outline : Icons.person_add,
@@ -1318,7 +1846,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   label: Text(
                     isJoined
-                        ? (ar ? 'عرض التفاصيل' : 'View Details')
+                        ? (ar ? 'خيارات' : 'Options')
                         : ((match['playersCount'] ?? 0) >=
                                   (match['maxPlayers'] ?? 10)
                               ? (ar ? 'قائمة الانتظار' : 'Waiting List')
@@ -1346,11 +1874,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /* ---------- no matches card ---------- */
-  Widget _noMatchesCard(BuildContext context, bool ar, double screenWidth, double screenHeight) {
+  Widget _noMatchesCard(
+    BuildContext context,
+    bool ar,
+    double screenWidth,
+    double screenHeight,
+  ) {
     final theme = Theme.of(context);
     final iconSize = screenWidth > 600 ? 64.0 : 48.0;
     final titleFontSize = screenWidth > 600 ? 22.0 : 18.0;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: screenHeight * 0.02),
       padding: EdgeInsets.all(screenHeight * 0.025),
@@ -1392,7 +1925,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /* ---------- Navigation Methods ---------- */
-  void _navigateToMatchDetails(BuildContext context, Map<String, dynamic> match) {
+  void _navigateToMatchDetails(
+    BuildContext context,
+    Map<String, dynamic> match,
+  ) {
     // Check if user is guest before navigating
     final ar = widget.ctrl.isArabic;
     if (!GuestService.handleGuestInteraction(context, ar)) {
@@ -1433,7 +1969,10 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(ar ? 'يجب عليك تسجيل الدخول أولاً' : 'You must be logged in.')),
+            content: Text(
+              ar ? 'يجب عليك تسجيل الدخول أولاً' : 'You must be logged in.',
+            ),
+          ),
         );
         setState(() => _isJoiningMatch = false);
       }
@@ -1444,18 +1983,38 @@ class _HomeScreenState extends State<HomeScreen> {
     if (matchId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ar ? 'معرف المباراة غير صالح' : 'Invalid Match ID.')),
+          SnackBar(
+            content: Text(ar ? 'معرف المباراة غير صالح' : 'Invalid Match ID.'),
+          ),
         );
         setState(() => _isJoiningMatch = false);
       }
       return;
     }
 
-    final matchRef = FirebaseFirestore.instance.collection('matches').doc(matchId);
+    final matchRef = FirebaseFirestore.instance
+        .collection('matches')
+        .doc(matchId);
 
     try {
+      // Fetch current user's role so admins/coaches/organizers can bypass registry lock
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final role = (userDoc.exists ? (userDoc.data()?['role'] ?? '') : '')
+          .toString()
+          .toLowerCase();
+      final bool canBypassRegistry = [
+        'admin',
+        'coach',
+        'organizer',
+      ].contains(role);
+
       // Use a Firestore Transaction for atomic read-modify-write
-      String status = await FirebaseFirestore.instance.runTransaction((transaction) async {
+      String status = await FirebaseFirestore.instance.runTransaction((
+        transaction,
+      ) async {
         final snapshot = await transaction.get(matchRef);
 
         if (!snapshot.exists) {
@@ -1463,12 +2022,37 @@ class _HomeScreenState extends State<HomeScreen> {
         }
 
         final matchData = snapshot.data()!;
+
+        // Prevent joining if match has ended
+        if (_computeMatchStatus(matchData) == 'ended') {
+          throw Exception(
+            ar ? 'هذه المباراة انتهت بالفعل' : 'This match has already ended.',
+          );
+        }
+
+        // Prevent joining before registry opens if openRegistryDate is set
+        // Allow bypass for admins/coaches/organizers
+        final openRegistry = matchData['openRegistryDate'];
+        if (openRegistry != null && !canBypassRegistry) {
+          final registryOpen = parseFirestoreDate(openRegistry);
+
+          if (DateTime.now().isBefore(registryOpen)) {
+            throw Exception('REGISTRY_NOT_OPEN');
+          }
+        }
         final List<dynamic> players = List.from(matchData['players'] ?? []);
-        final List<dynamic> waitingList = List.from(matchData['waitingList'] ?? []);
+        final List<dynamic> waitingList = List.from(
+          matchData['waitingList'] ?? [],
+        );
         final int maxPlayers = matchData['maxPlayers'] ?? 10;
 
-        if (players.contains(user.uid) || waitingList.any((p) => p is Map && p['userId'] == user.uid)) {
-          throw Exception(ar ? 'لقد انضممت بالفعل إلى هذه المباراة' : 'You have already joined this match.');
+        if (players.contains(user.uid) ||
+            waitingList.any((p) => p is Map && p['userId'] == user.uid)) {
+          throw Exception(
+            ar
+                ? 'لقد انضممت بالفعل إلى هذه المباراة'
+                : 'You have already joined this match.',
+          );
         }
 
         if (players.length < maxPlayers) {
@@ -1476,36 +2060,135 @@ class _HomeScreenState extends State<HomeScreen> {
             'players': FieldValue.arrayUnion([user.uid]),
             'playersCount': FieldValue.increment(1),
           });
-          return ar ? 'تم الانضمام إلى المباراة بنجاح!' : 'Successfully joined the match!';
+          return ar
+              ? 'تم الانضمام إلى المباراة بنجاح!'
+              : 'Successfully joined the match!';
         } else {
           transaction.update(matchRef, {
             'waitingList': FieldValue.arrayUnion([
-              {'userId': user.uid, 'joinedAt': Timestamp.now()}
+              {'userId': user.uid, 'joinedAt': Timestamp.now()},
             ]),
           });
-          return ar ? 'تمت الإضافة إلى قائمة الانتظار!' : 'Added to waiting list!';
+          return ar
+              ? 'تمت الإضافة إلى قائمة الانتظار!'
+              : 'Added to waiting list!';
         }
       });
 
       // On success, refresh data from Firestore and show message
       if (mounted) {
         await _loadJoinedMatches();
-        await MatchesService().loadMatchesFromFirestore(); // Refresh public matches
+        await MatchesService()
+            .loadMatchesFromFirestore(); // Refresh public matches
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(status), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        if (e.toString().contains('REGISTRY_NOT_OPEN')) {
+          final openRegistry = match['openRegistryDate'];
+          final openStr = openRegistry != null
+              ? _formatMatchDate(openRegistry)
+              : (ar ? 'قريباً' : 'soon');
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              title: Text(ar ? 'التسجيل مغلق' : 'Registration Closed'),
+              content: Text(
+                ar
+                    ? 'سيفتح باب التسجيل لهذه المباراة في: $openStr'
+                    : 'Registration for this match will open at: $openStr.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text(ar ? 'حسناً' : 'OK'),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } finally {
       if (mounted) {
         setState(() {
           _isJoiningMatch = false;
         });
+      }
+    }
+  }
+
+  Future<void> _leaveMatch(Map<String, dynamic> match) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final matchId = match['id']?.toString();
+    if (matchId == null) return;
+
+    final matchRef = FirebaseFirestore.instance
+        .collection('matches')
+        .doc(matchId);
+
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(matchRef);
+        if (!snapshot.exists) return;
+
+        final matchData = snapshot.data()!;
+
+        final List<dynamic> players = List.from(matchData['players'] ?? []);
+        final List<dynamic> waitingList = List.from(
+          matchData['waitingList'] ?? [],
+        );
+
+        if (players.contains(user.uid)) {
+          // remove from players
+          players.removeWhere((p) => p == user.uid);
+          transaction.update(matchRef, {
+            'players': players,
+            'playersCount': (matchData['playersCount'] ?? players.length) is int
+                ? FieldValue.increment(-1)
+                : FieldValue.increment(-1),
+          });
+        } else {
+          // remove from waiting list if present
+          waitingList.removeWhere((p) => p is Map && p['userId'] == user.uid);
+          transaction.update(matchRef, {'waitingList': waitingList});
+        }
+      });
+
+      if (mounted) {
+        await _loadJoinedMatches();
+        await MatchesService().loadMatchesFromFirestore();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.ctrl.isArabic ? 'تمت مغادرة المباراة' : 'Left match',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Leave match error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.ctrl.isArabic
+                  ? 'فشل مغادرة المباراة'
+                  : 'Failed to leave match',
+            ),
+          ),
+        );
       }
     }
   }
