@@ -35,6 +35,7 @@ import 'pages/players.dart';
 import 'pages/MainLayout.dart';
 import 'pages/Organization.dart';
 import 'pages/Management.dart';
+import 'academy_performance.dart';
 import 'pages/Notifications.dart';
 import 'pages/MatchDetails.dart';
 import 'pages/FAQPage.dart';
@@ -237,6 +238,10 @@ class LetsPlayApp extends StatelessWidget {
           case '/home':
             return MaterialPageRoute(
               builder: (_) => MainLayout(ctrl: localeCtrl),
+            );
+          case '/academy':
+            return MaterialPageRoute(
+              builder: (_) => const AcademyPerformancePage(),
             );
           case '/splash':
             return MaterialPageRoute(

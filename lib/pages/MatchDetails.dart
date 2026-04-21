@@ -1147,7 +1147,11 @@ class MatchDetailsScreen extends StatelessWidget {
                                 ElevatedButton(
                                   onPressed: isMatchEnded
                                       ? null
-                                      : () => _joinMatch(context, match, ar),
+                                      : () => MatchesService().joinMatch(
+                                          context: context,
+                                          match: match,
+                                          ar: ar,
+                                        ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: isMatchEnded
                                         ? Colors.grey
@@ -1342,7 +1346,11 @@ class MatchDetailsScreen extends StatelessWidget {
                     return Center(
                       child: ElevatedButton(
                         onPressed: () {
-                          _joinMatch(context, match, ar);
+                          MatchesService().joinMatch(
+                            context: context,
+                            match: match,
+                            ar: ar,
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: playersCount >= maxPlayers
@@ -2323,6 +2331,7 @@ class MatchDetailsScreen extends StatelessWidget {
     }
   }
 
+  // ignore: unused_element
   void _joinMatch(
     BuildContext context,
     Map<String, dynamic> match,

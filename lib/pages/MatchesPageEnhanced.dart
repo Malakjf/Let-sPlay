@@ -85,10 +85,19 @@ class _MatchesPageEnhancedState extends State<MatchesPageEnhanced> {
           .orderBy('date', descending: true)
           .get();
 
-      final matches = snapshot.docs.map((doc) {
+      var matches = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return data;
+      }).toList();
+
+      // Test matches visibility filter (only for letsplaysup2025@gmail.com)
+      final userEmail = FirebaseAuth.instance.currentUser?.email;
+      const testEmail = 'letsplaysup2025@gmail.com';
+      matches = matches.where((match) {
+        return !(match['name']?.toString().toLowerCase().contains('test') ??
+                false) ||
+            userEmail == testEmail;
       }).toList();
 
       if (mounted) {
@@ -101,7 +110,7 @@ class _MatchesPageEnhancedState extends State<MatchesPageEnhanced> {
       }
     } catch (e) {
       debugPrint('❌ Error loading matches: $e');
-      
+
       if (mounted) {
         setState(() {
           // Show empty list when error occurs
@@ -109,10 +118,12 @@ class _MatchesPageEnhancedState extends State<MatchesPageEnhanced> {
           _filteredMatches = [];
           _isLoading = false;
         });
-        
+
         final errorString = e.toString();
         if (errorString.contains('failed-precondition')) {
-          debugPrint('⚠️ Missing Index on matches collection. Showing empty/cached list.');
+          debugPrint(
+            '⚠️ Missing Index on matches collection. Showing empty/cached list.',
+          );
         }
       }
     }
@@ -128,6 +139,15 @@ class _MatchesPageEnhancedState extends State<MatchesPageEnhanced> {
 
     setState(() {
       _filteredMatches = _matches.where((match) {
+        // Test matches visibility filter (only for letsplaysup2025@gmail.com)
+        final userEmail = FirebaseAuth.instance.currentUser?.email;
+        const testEmail = 'letsplaysup2025@gmail.com';
+        if ((match['name']?.toString().toLowerCase().contains('test') ??
+                false) &&
+            userEmail != testEmail) {
+          return false;
+        }
+
         // Search filter
         final matchesSearch =
             query.isEmpty ||
@@ -602,7 +622,7 @@ class _MatchCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        match['fieldName'],
+                        match['fieldName'] ?? '',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.textTheme.bodySmall?.color?.withOpacity(
                             0.6,

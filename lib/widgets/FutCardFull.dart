@@ -37,6 +37,8 @@ class FutCardFull extends StatefulWidget {
   final String position;
   final int rating;
   final String countryIcon;
+  final PlayerAttributes? overrideAttributes;
+  final int? overrideRating;
   final String? avatarUrl;
   final Color? ratingColor;
   final Color? textColor;
@@ -52,6 +54,8 @@ class FutCardFull extends StatefulWidget {
     required this.position,
     required this.rating,
     required this.countryIcon,
+    this.overrideAttributes,
+    this.overrideRating,
     this.avatarUrl,
     this.ratingColor,
     this.textColor,
@@ -115,7 +119,10 @@ class _FutCardFullState extends State<FutCardFull> {
     // 🎯 Use Consumer to listen to PlayerAttributesStore (Single Source of Truth)
     return Consumer<PlayerAttributesStore>(
       builder: (context, attrStore, child) {
-        final attributes = attrStore.getPlayerAttributes(widget.playerId);
+        final attributes =
+            widget.overrideAttributes ??
+            attrStore.getPlayerAttributes(widget.playerId);
+        final effectiveRating = widget.overrideRating ?? widget.rating;
         final isGk = widget.position.toUpperCase() == 'GK';
 
         // The card's content is built inside LayoutBuilder to be fully responsive.
@@ -143,6 +150,7 @@ class _FutCardFullState extends State<FutCardFull> {
               context,
               attributes,
               isGk: isGk,
+              effectiveRating: effectiveRating,
               scale: scale,
               cardWidth: cardWidth,
               cardHeight: cardHeight,
@@ -160,8 +168,9 @@ class _FutCardFullState extends State<FutCardFull> {
     double scale,
     String displayPosition,
     bool isGk,
+    int effectiveRating,
   ) {
-    final color = getFutColorByLevel(widget.rating);
+    final color = getFutColorByLevel(effectiveRating);
     final List<Widget> children = [];
     double gridWidth;
 
@@ -310,6 +319,7 @@ class _FutCardFullState extends State<FutCardFull> {
     BuildContext context,
     PlayerAttributes? attributes, {
     required bool isGk,
+    required int effectiveRating,
     required double scale,
     required double cardWidth,
     required double cardHeight,
@@ -323,7 +333,7 @@ class _FutCardFullState extends State<FutCardFull> {
     final displayPosition = widget.position;
 
     // 🎨 Resolve background asset based on level (Strict Mapping)
-    final backgroundAsset = getFutCardAssetByLevel(widget.rating);
+    final backgroundAsset = getFutCardAssetByLevel(effectiveRating);
 
     // 🛡️ Defensive URL Validation
     final bool hasValidUrl = FutCardFull._isValidUrl(widget.avatarUrl);
@@ -354,7 +364,7 @@ class _FutCardFullState extends State<FutCardFull> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    widget.rating.toString(),
+                    effectiveRating.toString(),
                     style: GoogleFonts.saira(
                       fontSize: 36 * scale,
                       fontWeight: FontWeight.w900,
@@ -497,7 +507,13 @@ class _FutCardFullState extends State<FutCardFull> {
             // PAC, SHO, PAS, DRI, DEF, PHY - 2x3 grid
             Positioned(
               top: 345 * scale,
-              child: _attributesGrid(attributes, scale, displayPosition, isGk),
+              child: _attributesGrid(
+                attributes,
+                scale,
+                displayPosition,
+                isGk,
+                effectiveRating,
+              ),
             ),
 
             // 🔰 Level Label (Bottom of card)
@@ -524,7 +540,7 @@ class _FutCardFullState extends State<FutCardFull> {
                   ],
                 ),
                 child: Text(
-                  'LV. ${widget.rating}',
+                  'LV. $effectiveRating',
                   style: GoogleFonts.saira(
                     color: const Color(0xFFE8D4B0),
                     fontSize: 20 * scale,

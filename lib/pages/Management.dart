@@ -164,6 +164,7 @@ class ManagementScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+
                   GlassCard(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(

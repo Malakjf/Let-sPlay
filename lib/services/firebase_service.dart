@@ -719,6 +719,24 @@ class FirebaseService {
     await saveUserData(uid, updates);
   }
 
+  /// Update a player (user) document with arbitrary fields.
+  /// Intended for updating academyPerformance and related fields.
+  Future<void> updatePlayer(
+    String playerId,
+    Map<String, dynamic> updates,
+  ) async {
+    _requireNonEmptyId(playerId, 'playerId');
+    try {
+      // Ensure updatedAt is set
+      final payload = {...updates, 'updatedAt': FieldValue.serverTimestamp()};
+
+      await _db.collection('users').doc(playerId).update(payload);
+    } catch (e) {
+      debugPrint('❌ updatePlayer failed for $playerId: $e');
+      rethrow;
+    }
+  }
+
   Future<void> updateUserRole(String uid, String role) async {
     _requireNonEmptyId(uid, 'uid');
     await updateUserData(uid, {'role': role});

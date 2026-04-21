@@ -11,6 +11,7 @@ import '../services/matches_service.dart';
 import '../services/firebase_service.dart';
 import '../services/notification_service.dart';
 import '../services/guest_service.dart';
+import '../services/update_service.dart';
 import '../utils/firestore_helper.dart';
 import '../widgets/logobutton.dart' show LogoButton;
 
@@ -43,23 +44,56 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadJoinedMatches();
     // Load matches from Firestore - only if user is logged in
     _loadMatchesIfAuthenticated();
+
+    // 🚀 Check for app updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdate(context);
+    });
+  }
+
+  /// Helper to get the calculated end time of a match
+  DateTime _getMatchEndTime(Map<String, dynamic> match) {
+    try {
+      // Prioritize explicit endDate field if available
+      if (match['endDate'] != null) {
+        return parseFirestoreDate(match['endDate']);
+      }
+
+      // Fallback: compute from start date and duration
+      final matchDate = parseFirestoreDate(match['date']);
+      if (matchDate.millisecondsSinceEpoch == 0) return matchDate;
+
+      int durationMin = 90;
+      final d = match['duration'];
+      if (d is int) {
+        durationMin = d;
+      } else if (d is String) {
+        durationMin = int.tryParse(d) ?? 90;
+      } else if (d is num) {
+        durationMin = d.toInt();
+      }
+      return matchDate.add(Duration(minutes: durationMin));
+    } catch (e) {
+      return DateTime.fromMillisecondsSinceEpoch(0);
+    }
+  }
+
+  /// Checks if a match ended more than 7 days ago
+  bool _isMatchExpired(Map<String, dynamic> match) {
+    final matchEnd = _getMatchEndTime(match);
+    // If parsing failed or date is missing, don't expire it by default
+    if (matchEnd.millisecondsSinceEpoch == 0) return false;
+
+    final now = DateTime.now();
+    // Hide if currentDate > endDate + 7 days
+    return now.isAfter(matchEnd.add(const Duration(days: 7)));
   }
 
   String _computeMatchStatus(Map<String, dynamic> match) {
     try {
       final now = DateTime.now();
       final matchDate = parseFirestoreDate(match['date']);
-
-      // compute end time using duration (minutes)
-      int durationMin = 90;
-      if (match['duration'] is int) {
-        durationMin = match['duration'];
-      } else if (match['duration'] is String) {
-        durationMin = int.tryParse(match['duration']) ?? 90;
-      } else if (match['duration'] is num) {
-        durationMin = (match['duration'] as num).toInt();
-      }
-      final matchEnd = matchDate.add(Duration(minutes: durationMin));
+      final matchEnd = _getMatchEndTime(match);
 
       // open registry date (optional)
       DateTime? openDate;
@@ -254,6 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
       animation: Listenable.merge([widget.ctrl, MatchesService()]),
       builder: (context, child) {
         final ar = widget.ctrl.isArabic;
+        final _ = DateTime.now();
         final matchesService = MatchesService();
         var allMatches = matchesService.matches;
 
@@ -275,26 +310,13 @@ class _HomeScreenState extends State<HomeScreen> {
           }).toList();
         }
 
-        // Remove matches that ended more than 1 week ago
-        final now = DateTime.now();
-        allMatches = allMatches.where((m) {
-          try {
-            final matchDate = parseFirestoreDate(m['date']);
-            int durationMin = 90;
-            if (m['duration'] is int) {
-              durationMin = m['duration'];
-            } else if (m['duration'] is String) {
-              durationMin = int.tryParse(m['duration']) ?? 90;
-            } else if (m['duration'] is num) {
-              durationMin = (m['duration'] as num).toInt();
-            }
-            final matchEnd = matchDate.add(Duration(minutes: durationMin));
-            // keep match if it ended within the last 7 days or is not ended yet
-            return matchEnd.isAfter(now.subtract(const Duration(days: 7)));
-          } catch (e) {
-            return true; // keep if any parsing fails
-          }
-        }).toList();
+        // Automatically hide matches that ended more than 7 days ago
+        allMatches = allMatches.where((m) => !_isMatchExpired(m)).toList();
+
+        // Filter joined matches using the same expiry logic for consistency
+        final visibleJoinedMatches = _allJoinedMatches
+            .where((m) => !_isMatchExpired(m))
+            .toList();
 
         // Find the joined match (next match)
 
@@ -347,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               '❌ Avatar load error: $exception',
                                             );
                                           }
-                                        : null,
+                                        : null, // Set to null when backgroundImage is null
                                     child:
                                         _profilePicUrl == null ||
                                             _profilePicUrl!.isEmpty
@@ -367,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   16,
                                             ),
                                           )
-                                        : null,
+                                        : const SizedBox.shrink(),
                                   ),
                                   SizedBox(width: screenWidth * 0.025),
                                   Expanded(
@@ -460,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         height: screenHeight * 0.03,
                       ), // Clean spacing to matches section
                       // Your Matches Section (ALL joined matches)
-                      if (_allJoinedMatches.isNotEmpty) ...[
+                      if (visibleJoinedMatches.isNotEmpty) ...[
                         SizedBox(height: screenHeight * 0.025),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -487,7 +509,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                '${_allJoinedMatches.length}',
+                                '${visibleJoinedMatches.length}',
                                 style: TextStyle(
                                   color: theme.colorScheme.primary,
                                   fontWeight: FontWeight.bold,
@@ -504,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ..._buildGroupedMatchesSection(
                           context,
                           ar,
-                          _allJoinedMatches,
+                          visibleJoinedMatches,
                           theme,
                           screenWidth,
                           screenHeight,
@@ -785,8 +807,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   IconButton(
-                    icon: const Icon(
-                      Icons.chevron_left_rounded,
+                    icon: Icon(
+                      ar
+                          ? Icons.chevron_right_rounded
+                          : Icons.chevron_left_rounded,
                       color: Colors.white70,
                       size: 28,
                     ),
@@ -809,8 +833,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.chevron_right_rounded,
+                    icon: Icon(
+                      ar
+                          ? Icons.chevron_left_rounded
+                          : Icons.chevron_right_rounded,
                       color: Colors.white70,
                       size: 28,
                     ),
@@ -828,249 +854,229 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Flipped calendar grid
+            // Calendar grid
             Expanded(
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()..scale(-1.0, 1.0),
-                child: TableCalendar(
-                  headerVisible: false,
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
-                  focusedDay: _calendarFocusedDay,
-                  calendarFormat: CalendarFormat.month,
-                  sixWeekMonthsEnforced: true,
-                  rowHeight: rowHeight,
-                  selectedDayPredicate: (d) =>
-                      isSameDay(_calendarSelectedDay, d),
-                  onDaySelected: (s, f) => setState(() {
-                    _calendarSelectedDay = s;
-                    _calendarFocusedDay = f;
-                  }),
-                  eventLoader: (day) {
-                    final matchesOnDay = allMatches.where((match) {
-                      final matchDate = parseFirestoreDate(match['date']);
-                      return isSameDay(matchDate, day);
-                    }).toList();
+              child: TableCalendar(
+                headerVisible: false,
+                firstDay: DateTime.utc(2020, 1, 1),
+                lastDay: DateTime.utc(2030, 12, 31),
+                focusedDay: _calendarFocusedDay,
+                locale: ar ? 'ar' : 'en_US',
+                calendarFormat: CalendarFormat.month,
+                sixWeekMonthsEnforced: true,
+                rowHeight: rowHeight,
+                selectedDayPredicate: (d) => isSameDay(_calendarSelectedDay, d),
+                onDaySelected: (s, f) => setState(() {
+                  _calendarSelectedDay = s;
+                  _calendarFocusedDay = f;
+                }),
+                eventLoader: (day) {
+                  final matchesOnDay = allMatches.where((match) {
+                    final matchDate = parseFirestoreDate(match['date']);
+                    return isSameDay(matchDate, day);
+                  }).toList();
 
-                    if (matchesOnDay.isNotEmpty) {
-                      debugPrint(
-                        'Found ${matchesOnDay.length} matches on ${day.toString()}',
-                      );
-                    }
+                  if (matchesOnDay.isNotEmpty) {
+                    debugPrint(
+                      'Found ${matchesOnDay.length} matches on ${day.toString()}',
+                    );
+                  }
 
-                    return matchesOnDay;
+                  return matchesOnDay;
+                },
+                calendarBuilders: CalendarBuilders(
+                  // Day-of-week labels
+                  dowBuilder: (context, day) {
+                    final text = DateFormat.E(ar ? 'ar' : 'en_US').format(day);
+                    return Center(
+                      child: Text(
+                        text,
+                        style: GoogleFonts.spaceGrotesk(
+                          color:
+                              theme.textTheme.bodyMedium?.color ??
+                              Colors.white70,
+                          fontSize: dayFontSize,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
                   },
-                  calendarBuilders: CalendarBuilders(
-                    // Flip day-of-week labels and day numbers back to normal
-                    dowBuilder: (context, day) {
-                      final text = DateFormat.E().format(day);
-                      return Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..scale(-1.0, 1.0),
-                        child: Center(
-                          child: Text(
-                            text,
-                            style: GoogleFonts.spaceGrotesk(
-                              color:
-                                  theme.textTheme.bodyMedium?.color ??
-                                  Colors.white70,
-                              fontSize: dayFontSize,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                  defaultBuilder: (context, date, _) {
+                    return Center(
+                      child: Text(
+                        '${date.day}',
+                        style: GoogleFonts.spaceGrotesk(
+                          color:
+                              theme.textTheme.bodyMedium?.color ??
+                              Colors.white70,
+                          fontSize: dayFontSize,
+                          fontWeight: FontWeight.w500,
                         ),
-                      );
-                    },
-                    defaultBuilder: (context, date, _) {
-                      return Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..scale(-1.0, 1.0),
-                        child: Center(
-                          child: Text(
-                            '${date.day}',
-                            style: GoogleFonts.spaceGrotesk(
-                              color:
-                                  theme.textTheme.bodyMedium?.color ??
-                                  Colors.white70,
-                              fontSize: dayFontSize,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                      ),
+                    );
+                  },
+                  todayBuilder: (context, date, _) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary,
+                            theme.colorScheme.primary.withOpacity(0.8),
+                          ],
                         ),
-                      );
-                    },
-                    todayBuilder: (context, date, _) {
-                      return Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..scale(-1.0, 1.0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                theme.colorScheme.primary,
-                                theme.colorScheme.primary.withOpacity(0.8),
-                              ],
-                            ),
-                            shape: BoxShape.circle,
-                            border: Border.all(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${date.day}',
+                        style: GoogleFonts.spaceGrotesk(
+                          color: Colors.white,
+                          fontSize: dayFontSize,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
+                  selectedBuilder: (context, date, _) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.colorScheme.primary,
+                            theme.colorScheme.secondary.withOpacity(0.7),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '${date.day}',
+                        style: GoogleFonts.spaceGrotesk(
+                          color: theme.colorScheme.onPrimary,
+                          fontSize: dayFontSize,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
+                  markerBuilder: (context, date, events) {
+                    if (events.isEmpty) return const SizedBox.shrink();
+
+                    // DEBUG CHECK: Log marker rendering to catch unintended builds
+                    debugPrint(
+                      '🎨 Rendering marker for: ${date.day} with ${events.length} events',
+                    );
+
+                    final eventCount = events.length;
+                    return Positioned(
+                      bottom: 2,
+                      right: ar ? null : 2,
+                      left: ar ? 2 : null,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              theme.colorScheme.primary,
+                              theme.colorScheme.secondary,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
                               color: theme.colorScheme.primary.withOpacity(0.3),
-                              width: 2,
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
                             ),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${date.day}',
-                            style: GoogleFonts.spaceGrotesk(
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.sports_soccer,
+                              size: 12,
                               color: Colors.white,
-                              fontSize: dayFontSize,
-                              fontWeight: FontWeight.w600,
                             ),
-                          ),
-                        ),
-                      );
-                    },
-                    selectedBuilder: (context, date, _) {
-                      return Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..scale(-1.0, 1.0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                theme.colorScheme.primary,
-                                theme.colorScheme.secondary.withOpacity(0.7),
-                              ],
-                            ),
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            '${date.day}',
-                            style: GoogleFonts.spaceGrotesk(
-                              color: theme.colorScheme.onPrimary,
-                              fontSize: dayFontSize,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                    markerBuilder: (context, date, events) {
-                      if (events.isEmpty) return null;
-                      final eventCount = events.length;
-                      return Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.identity()..scale(-1.0, 1.0),
-                        child: Positioned(
-                          bottom: 2,
-                          right: 2,
-                          child: Container(
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  theme.colorScheme.primary,
-                                  theme.colorScheme.secondary,
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: theme.colorScheme.primary.withOpacity(
-                                    0.3,
-                                  ),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.sports_soccer,
-                                  size: 12,
+                            if (eventCount > 1) ...[
+                              const SizedBox(width: 2),
+                              Text(
+                                '${eventCount > 9 ? '9+' : eventCount}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
-                                if (eventCount > 1) ...[
-                                  const SizedBox(width: 2),
-                                  Text(
-                                    '${eventCount > 9 ? '9+' : eventCount}',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
+                              ),
+                            ],
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                    );
+                  },
+                ),
+                calendarStyle: CalendarStyle(
+                  outsideDaysVisible: false,
+                  todayDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.primary.withOpacity(0.8),
+                      ],
+                    ),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: theme.colorScheme.primary.withOpacity(0.3),
+                      width: 2,
+                    ),
                   ),
-                  calendarStyle: CalendarStyle(
-                    outsideDaysVisible: false,
-                    todayDecoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.primary.withOpacity(0.8),
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: theme.colorScheme.primary.withOpacity(0.3),
-                        width: 2,
-                      ),
+                  selectedDecoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.secondary.withOpacity(0.7),
+                      ],
                     ),
-                    selectedDecoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.secondary.withOpacity(0.7),
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    defaultTextStyle: GoogleFonts.spaceGrotesk(
-                      color:
-                          theme.textTheme.bodyMedium?.color ?? Colors.white70,
-                      fontSize: dayFontSize,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    weekendTextStyle: GoogleFonts.spaceGrotesk(
-                      color: theme.colorScheme.primary,
-                      fontSize: dayFontSize,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    outsideTextStyle: TextStyle(
-                      color: Colors.grey.withOpacity(0.3),
-                      fontSize: dayFontSize - 1,
-                    ),
-                    markersMaxCount: 2,
-                    markerSize: 8.0,
+                    shape: BoxShape.circle,
                   ),
-                  headerStyle: HeaderStyle(
-                    titleCentered: true,
-                    formatButtonVisible: false,
-                    titleTextStyle: GoogleFonts.spaceGrotesk(
-                      color: theme.textTheme.bodyLarge?.color ?? Colors.white,
-                      fontSize: headerFontSize,
-                      fontWeight: FontWeight.w700,
-                    ),
-                    leftChevronIcon: const Icon(
-                      Icons.chevron_left_rounded,
-                      color: Colors.white70,
-                      size: 28,
-                    ),
-                    rightChevronIcon: const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Colors.white70,
-                      size: 28,
-                    ),
+                  defaultTextStyle: GoogleFonts.spaceGrotesk(
+                    color: theme.textTheme.bodyMedium?.color ?? Colors.white70,
+                    fontSize: dayFontSize,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  weekendTextStyle: GoogleFonts.spaceGrotesk(
+                    color: theme.colorScheme.primary,
+                    fontSize: dayFontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  outsideTextStyle: TextStyle(
+                    color: Colors.grey.withOpacity(0.3),
+                    fontSize: dayFontSize - 1,
+                  ),
+                  markersMaxCount: 2,
+                  markerSize: 8.0,
+                ),
+                headerStyle: HeaderStyle(
+                  titleCentered: true,
+                  formatButtonVisible: false,
+                  titleTextStyle: GoogleFonts.spaceGrotesk(
+                    color: theme.textTheme.bodyLarge?.color ?? Colors.white,
+                    fontSize: headerFontSize,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  leftChevronIcon: const Icon(
+                    Icons.chevron_left_rounded,
+                    color: Colors.white70,
+                    size: 28,
+                  ),
+                  rightChevronIcon: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Colors.white70,
+                    size: 28,
                   ),
                 ),
               ),
@@ -1838,7 +1844,17 @@ class _HomeScreenState extends State<HomeScreen> {
                             }
                           }
                         }
-                      : () => _joinToMatch(match),
+                      : () async {
+                          if (_isJoiningMatch) return;
+                          setState(() => _isJoiningMatch = true);
+                          await MatchesService().joinMatch(
+                            context: context,
+                            match: match,
+                            ar: ar,
+                          );
+                          if (mounted) setState(() => _isJoiningMatch = false);
+                          _loadJoinedMatches(); // Refresh home list
+                        },
                   icon: Icon(
                     isJoined ? Icons.info_outline : Icons.person_add,
                     size: iconSize,
@@ -1948,183 +1964,6 @@ class _HomeScreenState extends State<HomeScreen> {
       // Reload joined matches when returning from MatchDetails
       _loadJoinedMatches();
     });
-  }
-
-  Future<void> _joinToMatch(Map<String, dynamic> match) async {
-    // Check if user is guest before joining
-    final ar = widget.ctrl.isArabic;
-    if (GuestService.handleGuestInteraction(context, ar)) {
-      return; // Guest user - blocked
-    }
-    if (_isJoiningMatch) {
-      return; // Prevent double-taps
-    }
-
-    setState(() {
-      _isJoiningMatch = true;
-    });
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              ar ? 'يجب عليك تسجيل الدخول أولاً' : 'You must be logged in.',
-            ),
-          ),
-        );
-        setState(() => _isJoiningMatch = false);
-      }
-      return;
-    }
-
-    final matchId = match['id']?.toString();
-    if (matchId == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(ar ? 'معرف المباراة غير صالح' : 'Invalid Match ID.'),
-          ),
-        );
-        setState(() => _isJoiningMatch = false);
-      }
-      return;
-    }
-
-    final matchRef = FirebaseFirestore.instance
-        .collection('matches')
-        .doc(matchId);
-
-    try {
-      // Fetch current user's role so admins/coaches/organizers can bypass registry lock
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final role = (userDoc.exists ? (userDoc.data()?['role'] ?? '') : '')
-          .toString()
-          .toLowerCase();
-      final bool canBypassRegistry = [
-        'admin',
-        'coach',
-        'organizer',
-      ].contains(role);
-
-      // Use a Firestore Transaction for atomic read-modify-write
-      String status = await FirebaseFirestore.instance.runTransaction((
-        transaction,
-      ) async {
-        final snapshot = await transaction.get(matchRef);
-
-        if (!snapshot.exists) {
-          throw Exception("Match does not exist!");
-        }
-
-        final matchData = snapshot.data()!;
-
-        // Prevent joining if match has ended
-        if (_computeMatchStatus(matchData) == 'ended') {
-          throw Exception(
-            ar ? 'هذه المباراة انتهت بالفعل' : 'This match has already ended.',
-          );
-        }
-
-        // Prevent joining before registry opens if openRegistryDate is set
-        // Allow bypass for admins/coaches/organizers
-        final openRegistry = matchData['openRegistryDate'];
-        if (openRegistry != null && !canBypassRegistry) {
-          final registryOpen = parseFirestoreDate(openRegistry);
-
-          if (DateTime.now().isBefore(registryOpen)) {
-            throw Exception('REGISTRY_NOT_OPEN');
-          }
-        }
-        final List<dynamic> players = List.from(matchData['players'] ?? []);
-        final List<dynamic> waitingList = List.from(
-          matchData['waitingList'] ?? [],
-        );
-        final int maxPlayers = matchData['maxPlayers'] ?? 10;
-
-        if (players.contains(user.uid) ||
-            waitingList.any((p) => p is Map && p['userId'] == user.uid)) {
-          throw Exception(
-            ar
-                ? 'لقد انضممت بالفعل إلى هذه المباراة'
-                : 'You have already joined this match.',
-          );
-        }
-
-        if (players.length < maxPlayers) {
-          transaction.update(matchRef, {
-            'players': FieldValue.arrayUnion([user.uid]),
-            'playersCount': FieldValue.increment(1),
-          });
-          return ar
-              ? 'تم الانضمام إلى المباراة بنجاح!'
-              : 'Successfully joined the match!';
-        } else {
-          transaction.update(matchRef, {
-            'waitingList': FieldValue.arrayUnion([
-              {'userId': user.uid, 'joinedAt': Timestamp.now()},
-            ]),
-          });
-          return ar
-              ? 'تمت الإضافة إلى قائمة الانتظار!'
-              : 'Added to waiting list!';
-        }
-      });
-
-      // On success, refresh data from Firestore and show message
-      if (mounted) {
-        await _loadJoinedMatches();
-        await MatchesService()
-            .loadMatchesFromFirestore(); // Refresh public matches
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(status), backgroundColor: Colors.green),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        if (e.toString().contains('REGISTRY_NOT_OPEN')) {
-          final openRegistry = match['openRegistryDate'];
-          final openStr = openRegistry != null
-              ? _formatMatchDate(openRegistry)
-              : (ar ? 'قريباً' : 'soon');
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-              title: Text(ar ? 'التسجيل مغلق' : 'Registration Closed'),
-              content: Text(
-                ar
-                    ? 'سيفتح باب التسجيل لهذه المباراة في: $openStr'
-                    : 'Registration for this match will open at: $openStr.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: Text(ar ? 'حسناً' : 'OK'),
-                ),
-              ],
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString().replaceAll('Exception: ', '')),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isJoiningMatch = false;
-        });
-      }
-    }
   }
 
   Future<void> _leaveMatch(Map<String, dynamic> match) async {

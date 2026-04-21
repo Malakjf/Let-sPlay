@@ -8,6 +8,7 @@ import 'package:letsplay/services/player_stats_store.dart';
 import 'package:letsplay/services/player_metrics_store.dart';
 import 'package:letsplay/services/player_attributes_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/color_palette_selector.dart';
 
 class PlayerItem {
   final String id;
@@ -43,7 +44,7 @@ class PlayerItem {
 
 class PlayersScreen extends StatefulWidget {
   final LocaleController ctrl;
-  final String? matchId; // ✅ Made nullable for safety
+  final String? matchId;
   final String title;
 
   const PlayersScreen({
@@ -116,7 +117,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
     }
   }
 
-  // ✅ Helper for date parsing (requested)
+  // Helper for date parsing (requested)
 
   Future<void> _initializeStores(String matchId) async {
     try {
@@ -133,7 +134,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
     }
   }
 
-  // ✅ Real-time stream creation
+  // Real-time stream creation
   Stream<List<PlayerItem>> _createPlayersStream(String matchId) {
     return FirebaseFirestore.instance
         .collection('matches')
@@ -144,7 +145,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
           final data = matchDoc.data();
           if (data == null) return [];
 
-          // ✅ Merge and deduplicate players
+          // Merge and deduplicate players
           final List<dynamic> playersList = data['players'] is List
               ? data['players']
               : [];
@@ -160,9 +161,13 @@ class _PlayersScreenState extends State<PlayersScreen> {
               ? data['teams']
               : {};
 
+          final Map<String, dynamic> playerColors = data['playerColors'] is Map
+              ? data['playerColors']
+              : {};
+
           if (allIds.isEmpty) return [];
 
-          // ✅ Fetch user details
+          // Fetch user details
           final List<PlayerItem> items = [];
           // Fetch in parallel for performance
           final userDocs = await Future.wait(
@@ -179,6 +184,12 @@ class _PlayersScreenState extends State<PlayersScreen> {
                   ? teams[userDoc.id]
                   : 0;
 
+              // Player color must come ONLY from selected value. Fallback to grey.
+              final dynamic storedColor = playerColors[userDoc.id];
+              final Color teamColor = storedColor is int
+                  ? Color(storedColor)
+                  : Colors.grey;
+
               items.add(
                 PlayerItem(
                   id: userDoc.id,
@@ -186,7 +197,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
                   age: userData['age'] ?? 25,
                   number: userData['number'] ?? 0,
                   photoUrl: userData['avatarUrl'] ?? userData['profilePicUrl'],
-                  teamColor: teamIdx == 1 ? Colors.red : Colors.blue,
+                  teamColor: teamColor,
                   team: teamIdx,
                   position: userData['position'] ?? 'Forward',
                 ),
@@ -206,7 +217,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Check if user is authenticated before building StreamBuilder
+    // Check if user is authenticated before building StreamBuilder
     final user = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
     final ar = widget.ctrl.isArabic;
@@ -267,14 +278,14 @@ class _PlayersScreenState extends State<PlayersScreen> {
       );
     }
 
-    // ✅ Handle missing matchId
+    // Handle missing matchId
     if (_resolvedMatchId == null) {
       return const Scaffold(
         body: Center(child: Text('Error: No Match ID provided')),
       );
     }
 
-    // ✅ StreamBuilder for real-time updates
+    // StreamBuilder for real-time updates
     return StreamBuilder<List<PlayerItem>>(
       stream: _playersStream,
       builder: (context, snapshot) {
@@ -821,7 +832,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
   }
 }
 
-// ✅ Using Consumer pattern for reactivity
+// Using Consumer pattern for reactivity
 class _PlayerRow extends StatefulWidget {
   final PlayerItem player;
   final String matchId;
@@ -877,57 +888,34 @@ class _PlayerRowState extends State<_PlayerRow> {
         title: const Text('Choose Team'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildTeamOption(0, 'Team', Colors.blue),
-            const SizedBox(height: 8),
-            _buildTeamOption(1, 'Team', Colors.red),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTeamOption(int teamIndex, String label, Color color) {
-    return InkWell(
-      onTap: () {
-        _updateTeam(teamIndex);
-        Navigator.pop(context);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(backgroundColor: color, radius: 8),
-            const SizedBox(width: 12),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-              ),
+            const Text('Select a custom team color for this player:'),
+            const SizedBox(height: 20),
+            AdvancedColorPicker(
+              selectedColor: widget.player.teamColor,
+              onColorChanged: (color) {
+                _updatePlayerColor(color);
+                Navigator.pop(ctx);
+              },
+              title: 'Player Color',
             ),
-            if (widget.player.team == teamIndex) ...[
-              const Spacer(),
-              Icon(Icons.check, color: color),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Future<void> _updateTeam(int newTeam) async {
+  /// Persists selected color to Firestore and updates team index
+  Future<void> _updatePlayerColor(Color color) async {
+    final int teamIdx = (color.blue > color.red) ? 0 : 1;
     await FirebaseFirestore.instance
         .collection('matches')
         .doc(widget.matchId)
-        .set({
-          'teams': {widget.player.id: newTeam},
-        }, SetOptions(merge: true));
+        .update({
+          'teams.${widget.player.id}': teamIdx,
+          'playerColors.${widget.player.id}': color.value,
+        });
   }
 
   @override
@@ -936,7 +924,7 @@ class _PlayerRowState extends State<_PlayerRow> {
     final tileBg = theme.cardColor;
     final mutedText = theme.textTheme.bodyMedium?.color ?? Colors.white70;
 
-    // ✅ Consumer2 for both stores - updates automatically!
+    // Consumer2 for both stores - updates automatically!
     return Consumer2<PlayerStatsStore, PlayerMetricsStore>(
       builder: (context, statsStore, metricsStore, _) {
         // Read from store (not local state!)
@@ -1075,30 +1063,32 @@ class _PlayerRowState extends State<_PlayerRow> {
               Flexible(
                 flex: 1,
                 fit: FlexFit.loose,
-                child: GestureDetector(
-                  onTap: _showTeamSelectionDialog,
-                  child: Center(
-                    child: Container(
-                      constraints: BoxConstraints(
-                        minWidth: 18,
-                        maxWidth: colorBoxSize,
-                        minHeight: 18,
-                        maxHeight: colorBoxSize,
-                      ),
-                      decoration: BoxDecoration(
-                        color: widget.player.teamColor,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${widget.player.team}',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: sw < 420 ? 11 : null,
+                child: Center(
+                  child: SizedBox(
+                    width: colorBoxSize,
+                    height: colorBoxSize,
+                    child: Material(
+                      color: widget.player.teamColor,
+                      borderRadius: BorderRadius.circular(6),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: _showTeamSelectionDialog,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${widget.player.team}',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: sw < 420 ? 11 : null,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -1135,7 +1125,13 @@ class _PlayerRowState extends State<_PlayerRow> {
                           );
                           _updateGkAttributes(context, statsStore);
                         },
-                        child: const Icon(Icons.remove, size: 14),
+                        child: Icon(
+                          Icons.remove,
+                          size: 14,
+                          color: theme.brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -1190,7 +1186,13 @@ class _PlayerRowState extends State<_PlayerRow> {
                           );
                           _updateGkAttributes(context, statsStore);
                         },
-                        child: const Icon(Icons.add, size: 14),
+                        child: Icon(
+                          Icons.add,
+                          size: 14,
+                          color: theme.brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                        ),
                       ),
                     ),
                   ],
