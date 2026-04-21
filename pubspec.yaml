@@ -57,6 +57,8 @@ dependencies:
   flutter_local_notifications: ^17.0.0
   theme_tailor_annotation: ^3.0.1
   collection: ^1.19.1
+  package_info_plus: ^9.0.1
+  flutter_colorpicker: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
