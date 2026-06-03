@@ -1,0 +1,20 @@
+I0423 15:18:48.235441   26132 load.go:31] Reloading schema and connectors...
+I0423 15:18:48.325123   26132 control.go:100] [projects/emulator/locations/emulator/services/letsplay 0315] UpdateResources(): done
+Main schema: sources: schema\schema.gql [673B] 
+Connector "example": sources: example\queries.gql [1100B] 
+I0423 15:18:48.407336   26132 codegen.go:101] [connector "example" dartSdk] Generating sources into "C:\\letsplay\\lib\\dataconnect_generated"
+I0423 15:18:48.425274   26132 codegen.go:101] [connector "example" adminSdk] Generating sources into "C:\\letsplay\\src\\dataconnect-admin-generated"
+I0423 15:18:48.464012   26132 collector.go:107] schema extensions wrote into "C:\\letsplay\\dataconnect\\.dataconnect\\schema"
+Generated sources: main\input.gql [45545B] prelude.gql [82799B] main\relation.gql [25099B] main\query.gql [6172B] main\mutation.gql [16698B] main\implicit.gql [2249B] 
+I0423 15:18:48.519840   26132 collector.go:107] connector "example" dartSdk wrote into "C:\\letsplay\\lib\\dataconnect_generated"
+Generated sources: create_new_match.dart [4634B] list_available_matches.dart [4444B] join_match.dart [3348B] generated.dart [1596B] README.md [5682B] .guides/usage.md [292B] .guides/config.json [236B] list_my_joined_matches.dart [5807B] .guides/setup.md [756B] 
+I0423 15:18:48.578574   26132 collector.go:107] connector "example" adminSdk wrote into "C:\\letsplay\\src\\dataconnect-admin-generated"
+Generated sources: package.json [632B] index.d.ts [4174B] esm\index.esm.js [1417B] esm\package.json [17B] index.cjs.js [1606B] 
+I0423 15:18:49.100298   26132 installsdk.go:55] Package @dataconnect/admin-generated is already installed. Skipping installation
+I0423 15:18:49.100298   26132 load.go:109] Finished reloading
+I0423 15:18:49.117599   26132 dev.go:104] Listening on address (HTTP + gRPC): 127.0.0.1:9399
+I0423 15:18:49.122968   26132 dev.go:104] Listening on address (HTTP + gRPC): [::1]:9399
+E0423 15:18:51.428379   26132 configure_emulator.go:19] ConfigureEmulator failed with error: could not configure service letsplay: cannot connect to Postgres database dbname='fdcdb' host='127.0.0.1' port='5432' sslmode='disable' dbname='fdcdb': driver: bad connection
+Request: service_id:  "letsplay"
+connection_string:  "postgres://127.0.0.1:5432/fdcdb?sslmode=disable"
+database:  "fdcdb"

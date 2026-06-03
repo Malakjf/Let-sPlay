@@ -7,22 +7,23 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    // Helper function to check if user is admin
+    // Helper function to check if user is admin (case-insensitive)
     function isAdmin() {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'Admin';
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '').toLowerCase() == 'admin';
     }
-    
-    // Helper function to check if user is organizer or admin
+
+    // Helper function to check if user is organizer or admin (case-insensitive)
     function isOrganizerOrAdmin() {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') in ['Admin', 'Organizer'];
+      return isAuthenticated() &&
+             (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '').toLowerCase() == 'admin' ||
+              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '').toLowerCase() == 'organizer');
     }
-    
-    // Helper function to check if user is coach
+
+    // Helper function to check if user is coach (case-insensitive)
     function isCoach() {
-      return isAuthenticated() && 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'Coach';
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '').toLowerCase() == 'coach';
     }
     
     // Helper function to check if user owns the document
@@ -99,6 +100,33 @@ service cloud.firestore {
                      (request.auth.uid == resource.data.userId || isAdmin());
       allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
+    }
+
+    // Evaluations collection - role-based access control
+    match /evaluations/{evaluationId} {
+      // Read: Admins see all, Coaches see their own submissions, Players see their own evaluations, Organizers can read
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (isCoach() && resource.data.coachId == request.auth.uid) ||
+        resource.data.playerId == request.auth.uid ||
+        isOrganizerOrAdmin()
+      );
+
+      // Create: Admins and Coaches can create
+      allow create: if isAuthenticated() && (
+        isAdmin() || isCoach()
+      ) && (
+        // If coach creating, ensure coachId matches auth uid
+        (isAdmin() || request.resource.data.coachId == request.auth.uid)
+      );
+
+      // Update: Admins can update any. Coaches may update their own evaluations.
+      allow update: if isAuthenticated() && (
+        isAdmin() || (isCoach() && resource.data.coachId == request.auth.uid)
+      );
+
+      // Delete: only admins
+      allow delete: if isAuthenticated() && isAdmin();
     }
   }
 }

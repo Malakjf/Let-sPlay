@@ -1,7 +1,7 @@
 name: letsplay
 description: Sports field booking app with free OpenStreetMap integration
 publish_to: 'none'
-version: 1.0.4+1
+version: 1.0.6+1
 environment:
   sdk: '^3.9.0'
 dependencies:
@@ -25,6 +25,7 @@ dependencies:
 # Image handling
   image_picker: ^1.0.7
   cached_network_image: ^3.3.0
+  cloudinary_public: ^0.23.1 # Added for direct Cloudinary unsigned uploads
 # Data & State Management  
   provider: ^6.1.2
 # HTTP & API
@@ -59,6 +60,8 @@ dependencies:
   collection: ^1.19.1
   package_info_plus: ^9.0.1
   flutter_colorpicker: ^1.1.0
+  facebook_app_events: ^0.27.1
+  app_tracking_transparency: ^2.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
