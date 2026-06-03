@@ -3,7 +3,6 @@ description: Sports field booking app with free OpenStreetMap integration
 publish_to: 'none'
 version: 2.0.0+1
 environment:
-  environment:
   sdk: ">=3.5.0 <4.0.0"
 dependencies:
   shared_preferences: ^2.2.2
