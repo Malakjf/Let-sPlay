@@ -231,8 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _initLevelTracking() async {
     final prefs = await SharedPreferences.getInstance();
     // Support legacy key `last_seen_level_{id}` but prefer new keys.
-    final shown =
-        prefs.getInt('lastLevelShown_${widget.player.id}') ??
+    final shown = prefs.getInt('lastLevelShown_${widget.player.id}') ??
         prefs.getInt('last_seen_level_${widget.player.id}');
     final ts = prefs.getInt('lastLevelUpTimestamp_${widget.player.id}');
     if (mounted) {
@@ -348,9 +347,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Read current level from PlayerStatsStore
     final statsStore = Provider.of<PlayerStatsStore>(context, listen: false);
-    final level = statsStore
-        .getStat(userId, PlayerStatsStore.statLevel)
-        .toInt();
+    final level =
+        statsStore.getStat(userId, PlayerStatsStore.statLevel).toInt();
 
     print('Current Level: $level');
     print('Last Seen Level: $_lastSeenLevel');
@@ -381,8 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // If same level, replay if within 24 hours
     if (level == _lastSeenLevel) {
-      final ts =
-          _lastLevelUpTimestampMillis ??
+      final ts = _lastLevelUpTimestampMillis ??
           prefs.getInt('lastLevelUpTimestamp_$userId');
       print('Checked timestamp (prefs or memory): $ts');
       if (ts != null) {
@@ -426,7 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             final errorString = snapshot.error?.toString() ?? '';
             final isPermissionDenied =
                 errorString.contains('permission-denied') ||
-                errorString.contains('PERMISSION_DENIED');
+                    errorString.contains('PERMISSION_DENIED');
 
             if (isPermissionDenied) {
               return _buildLimitedProfile(context, ar, theme, userId);
@@ -456,12 +453,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // 🎯 Use PlayerStatsStore as the single source of truth for stats and level
             // This ensures values match the "View Profile" popup exactly.
-            final level = statsStore
-                .getStat(userId, PlayerStatsStore.statLevel)
-                .toInt();
-            final double xp = statsStore
-                .getStat(userId, PlayerStatsStore.statXP)
-                .toDouble();
+            final level =
+                statsStore.getStat(userId, PlayerStatsStore.statLevel).toInt();
+            final double xp =
+                statsStore.getStat(userId, PlayerStatsStore.statXP).toDouble();
 
             final isAcademy = data['isAcademyPlayer'] == true;
 
@@ -516,11 +511,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         currentPermission,
                                         isAcademy,
                                       ),
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                            fontSize: 22,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                      style:
+                                          theme.textTheme.titleMedium?.copyWith(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                   if (widget.isPopup)
@@ -551,10 +546,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   GestureDetector(
                                     onTap: isOwnProfile && !_isUploading
                                         ? () => _updateAvatar(
-                                            context,
-                                            userId,
-                                            avatarUrl,
-                                          )
+                                              context,
+                                              userId,
+                                              avatarUrl,
+                                            )
                                         : null,
                                     child: MouseRegion(
                                       cursor: isOwnProfile
@@ -566,12 +561,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           playerName: name,
                                           position: position,
                                           rating: level,
-                                          countryIcon:
-                                              isValidUrl(countryFlagUrl)
+                                          countryIcon: isValidUrl(
+                                                  countryFlagUrl)
                                               ? bust(countryFlagUrl)
                                               : 'https://flagcdn.com/w320/jo.png',
-                                          avatarUrl:
-                                              _optimisticAvatarUrl ??
+                                          avatarUrl: _optimisticAvatarUrl ??
                                               (isValidUrl(avatarUrl)
                                                   ? bust(avatarUrl)
                                                   : ''),
@@ -763,8 +757,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           label,
           style: TextStyle(
-            color:
-                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
             fontSize: 12,
           ),
@@ -804,8 +797,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           ar ? 'تقدم المستوى' : 'LEVEL PROGRESS',
           style: TextStyle(
-            color:
-                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -873,9 +865,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         IconButton(
           icon: Icon(
-            FontAwesomeIcons.whatsapp,
-            color:
-                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            FontAwesomeIcons.whatsapp as IconData?,
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
           ),
           onPressed: () => open(whatsapp),
@@ -883,9 +874,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         IconButton(
           icon: Icon(
-            FontAwesomeIcons.instagram,
-            color:
-                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            FontAwesomeIcons.instagram as IconData?,
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
           ),
           onPressed: () => open(instagram),
@@ -893,9 +883,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         IconButton(
           icon: Icon(
-            FontAwesomeIcons.facebook,
-            color:
-                theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
+            FontAwesomeIcons.facebook as IconData?,
+            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
           ),
           onPressed: () => open(facebook),
@@ -928,7 +917,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           name,
         );
       }
-      return const SizedBox.shrink(); // Players viewing players - restricted view
+      return const SizedBox
+          .shrink(); // Players viewing players - restricted view
     }
 
     // If viewing own profile

@@ -176,7 +176,7 @@ class ProductDetailsSheet extends StatelessWidget {
 
 class _ContactButton extends StatelessWidget {
   final String label;
-  final IconData icon;
+  final dynamic icon;
   final Color color;
   final VoidCallback onTap;
 
@@ -207,7 +207,7 @@ class _ContactButton extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 32),
+              FaIcon(icon, color: color, size: 32),
               const SizedBox(height: 8),
               Text(
                 label,
