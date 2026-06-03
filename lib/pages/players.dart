@@ -9,6 +9,16 @@ import 'package:letsplay/services/player_metrics_store.dart';
 import 'package:letsplay/services/player_attributes_store.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/color_palette_selector.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'profile.dart';
+import '../utils/permissions.dart';
+
+/// 🛡️ Helper to validate image URLs safely
+bool _isValidUrl(String? url) {
+  return url != null &&
+      url.isNotEmpty &&
+      (url.startsWith('http://') || url.startsWith('https://'));
+}
 
 class PlayerItem {
   final String id;
@@ -701,6 +711,8 @@ class _PlayersScreenState extends State<PlayersScreen> {
                                 ),
                               ),
                             ),
+                            const SizedBox(width: 6),
+                            const SizedBox(width: 40), // Space for Manage menu
                           ],
                         ),
                       ),
@@ -743,6 +755,7 @@ class _PlayersScreenState extends State<PlayersScreen> {
                                     matchId: _resolvedMatchId!,
                                     selectedFilter: _selectedFilter,
                                     selectedMetric: _selectedMetric,
+                                    ctrl: widget.ctrl,
                                   );
                                 },
                               ),
@@ -838,12 +851,14 @@ class _PlayerRow extends StatefulWidget {
   final String matchId;
   final String selectedFilter;
   final String selectedMetric;
+  final LocaleController ctrl;
 
   const _PlayerRow({
     required this.player,
     required this.matchId,
     required this.selectedFilter,
     required this.selectedMetric,
+    required this.ctrl,
   });
 
   @override
@@ -863,6 +878,50 @@ class _PlayerRowState extends State<_PlayerRow> {
   void dispose() {
     _metricController.dispose();
     super.dispose();
+  }
+
+  /// 👤 Opens the full profile using reusable logic from ProfileScreen
+  Future<void> _viewProfile(BuildContext context) async {
+    final ar = widget.ctrl.isArabic;
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    try {
+      // Fetch viewer's permission level to pass to the profile screen
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!mounted) return;
+
+      final role = userDoc.data()?['role'] ?? 'Player';
+      final permissionLevel = userDoc.data()?['permissionLevel'];
+      final viewerPermission = permissionFromRole(permissionLevel ?? role);
+
+      ProfileScreen.showFromMap(
+        context,
+        ctrl: widget.ctrl,
+        data: {
+          'uid': widget.player.id,
+          'name': widget.player.name,
+          'avatarUrl': widget.player.photoUrl,
+          'position': widget.player.position,
+        },
+        viewerPermission: viewerPermission,
+      );
+    } catch (e) {
+      debugPrint('❌ Error opening profile: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ar ? 'خطأ في فتح الملف الشخصي' : 'Error opening profile',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _updateGkAttributes(BuildContext context, PlayerStatsStore statsStore) {
@@ -970,33 +1029,45 @@ class _PlayerRowState extends State<_PlayerRow> {
                 flex: 4,
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: avatarRadius,
-                      backgroundColor: widget.player.teamColor,
-                      backgroundImage:
-                          (widget.player.photoUrl != null &&
-                              widget.player.photoUrl!.isNotEmpty &&
-                              (widget.player.photoUrl!.startsWith('http') ||
-                                  widget.player.photoUrl!.startsWith('https')))
-                          ? NetworkImage(
-                              widget.player.photoUrl!.contains('?')
-                                  ? '${widget.player.photoUrl}&t=${DateTime.now().millisecondsSinceEpoch}'
-                                  : '${widget.player.photoUrl}?t=${DateTime.now().millisecondsSinceEpoch}',
-                            )
-                          : null,
-                      child:
-                          (widget.player.photoUrl == null ||
-                              widget.player.photoUrl!.isEmpty ||
-                              !widget.player.photoUrl!.startsWith('http'))
-                          ? Text(
-                              widget.player.avatarInitials,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: sw < 420 ? 10 : 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            )
-                          : null,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: widget.player.teamColor.withOpacity(0.6),
+                          width: 2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: widget.player.teamColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            spreadRadius: 2,
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: avatarRadius,
+                        backgroundColor: theme.colorScheme.primary.withOpacity(
+                          0.15,
+                        ),
+                        backgroundImage: _isValidUrl(widget.player.photoUrl)
+                            ? CachedNetworkImageProvider(
+                                widget.player.photoUrl!.contains('?')
+                                    ? '${widget.player.photoUrl}&t=${DateTime.now().millisecondsSinceEpoch}'
+                                    : '${widget.player.photoUrl}?t=${DateTime.now().millisecondsSinceEpoch}',
+                              )
+                            : null,
+                        onBackgroundImageError:
+                            _isValidUrl(widget.player.photoUrl)
+                            ? (exception, stackTrace) {
+                                debugPrint(
+                                  '❌ Error loading avatar: $exception',
+                                );
+                              }
+                            : null,
+                        child: !_isValidUrl(widget.player.photoUrl)
+                            ? const Icon(Icons.person, color: Colors.white70)
+                            : null,
+                      ),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -1245,6 +1316,80 @@ class _PlayerRowState extends State<_PlayerRow> {
                       },
                     ),
                   ),
+                ),
+              ),
+
+              // ⚙️ Manage Menu
+              SizedBox(
+                width: 40,
+                child: PopupMenuButton<String>(
+                  icon: Icon(Icons.more_vert, size: 20, color: mutedText),
+                  onSelected: (val) {
+                    if (val == 'view_profile') {
+                      _viewProfile(context);
+                    }
+                  },
+                  itemBuilder: (context) {
+                    final ar = widget.ctrl.isArabic;
+                    return [
+                      PopupMenuItem(
+                        value: 'view_profile',
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.person,
+                              size: 18,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(ar ? 'عرض الملف الشخصي' : 'View Profile'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.edit,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(ar ? 'تعديل المستخدم' : 'Edit User'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'role',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.admin_panel_settings,
+                              size: 18,
+                              color: Colors.grey,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(ar ? 'تغيير الدور' : 'Change Role'),
+                          ],
+                        ),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.delete,
+                              size: 18,
+                              color: Colors.red,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(ar ? 'حذف المستخدم' : 'Delete User'),
+                          ],
+                        ),
+                      ),
+                    ];
+                  },
                 ),
               ),
             ],

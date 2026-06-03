@@ -7,6 +7,7 @@ import '../../models/user_permission.dart';
 import '../../models/role_request.dart';
 import '../../utils/permissions.dart';
 import '../../services/firebase_service.dart';
+import '../profile.dart';
 
 class UserItem {
   final String id;
@@ -347,6 +348,7 @@ class _UserManagerScreenState
                                 _updateUserPermission(user, newPermission);
                               },
                               ar: ar,
+                              ctrl: widget.ctrl,
                             );
                           },
                         ),
@@ -525,28 +527,129 @@ class _UserManagerScreenState
   }
 
   void _showAddUserDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    UserPermission selectedRole = UserPermission.player;
+    bool isSaving = false;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        title: Text(
-          widget.ctrl.isArabic ? 'إضافة مستخدم جديد' : 'Add New User',
-          style: TextStyle(
-            color:
-                Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white,
-          ),
-        ),
-        content: const Text('Add user functionality would go here'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(widget.ctrl.isArabic ? 'إلغاء' : 'Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(widget.ctrl.isArabic ? 'إضافة' : 'Add'),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          final ar = widget.ctrl.isArabic;
+          return AlertDialog(
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            title: Text(
+              ar ? 'إضافة مستخدم جديد' : 'Add New User',
+              style: TextStyle(
+                color:
+                    Theme.of(context).textTheme.bodyMedium?.color ??
+                    Colors.white,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: ar ? 'الاسم' : 'Name',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      labelText: ar ? 'البريد الإلكتروني' : 'Email',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                    ),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  TextField(
+                    controller: passwordController,
+                    decoration: InputDecoration(
+                      labelText: ar ? 'كلمة المرور' : 'Password',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                    ),
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<UserPermission>(
+                    value: selectedRole,
+                    dropdownColor: Theme.of(
+                      context,
+                    ).appBarTheme.backgroundColor,
+                    decoration: InputDecoration(
+                      labelText: ar ? 'الدور' : 'Role',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                    ),
+                    items: UserPermission.values.map((role) {
+                      return DropdownMenuItem(
+                        value: role,
+                        child: Text(
+                          role.name.toUpperCase(),
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => selectedRole = val);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSaving ? null : () => Navigator.pop(context),
+                child: Text(ar ? 'إلغاء' : 'Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isSaving
+                    ? null
+                    : () async {
+                        if (emailController.text.isEmpty ||
+                            passwordController.text.isEmpty) {
+                          return;
+                        }
+                        setState(() => isSaving = true);
+                        try {
+                          await FirebaseService.instance.adminCreateUser(
+                            email: emailController.text.trim(),
+                            password: passwordController.text.trim(),
+                            name: nameController.text.trim(),
+                            role: selectedRole,
+                          );
+                          if (context.mounted) Navigator.pop(context);
+                          _loadUsers();
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Error: $e'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => isSaving = false);
+                        }
+                      },
+                child: isSaving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(ar ? 'إضافة' : 'Add'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -627,11 +730,13 @@ class _UserManagerScreenState
 class _UserCard extends StatelessWidget {
   final UserItem user;
   final Function(UserPermission) onPermissionChange;
+  final LocaleController ctrl;
   final bool ar;
 
   const _UserCard({
     required this.user,
     required this.onPermissionChange,
+    required this.ctrl,
     required this.ar,
   });
 
@@ -663,9 +768,7 @@ class _UserCard extends StatelessWidget {
               backgroundColor: theme.colorScheme.primary.withOpacity(0.2),
               backgroundImage: user.photoUrl != null
                   ? NetworkImage(
-                      user.photoUrl!.contains('?')
-                          ? '${user.photoUrl}&t=${DateTime.now().millisecondsSinceEpoch}'
-                          : '${user.photoUrl}?t=${DateTime.now().millisecondsSinceEpoch}',
+                      '${user.photoUrl}${user.photoUrl!.contains('?') ? '&' : '?'}v=${user.joinedDate.millisecondsSinceEpoch}',
                     )
                   : null,
               child: user.photoUrl == null
@@ -735,9 +838,48 @@ class _UserCard extends StatelessWidget {
             ),
 
             // Action Button
-            PopupMenuButton<UserPermission>(
-              onSelected: (permission) => onPermissionChange(permission),
+            PopupMenuButton<dynamic>(
+              onSelected: (value) {
+                if (value == 'view_profile') {
+                  ProfileScreen.showFromMap(
+                    context,
+                    ctrl: ctrl,
+                    data: {
+                      'uid': user.id,
+                      'name': user.name,
+                      'email': user.email,
+                      'avatarUrl': user.photoUrl,
+                      'role': user.permission.name,
+                    },
+                    viewerPermission:
+                        UserPermission.admin, // Management is Admin only
+                    asPopup: true,
+                  );
+                } else if (value is UserPermission) {
+                  onPermissionChange(value);
+                }
+              },
               itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'view_profile',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.person_outline,
+                        size: 18,
+                        color: theme.colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        ar ? 'عرض الملف الشخصي' : 'View Profile',
+                        style: TextStyle(
+                          color: theme.textTheme.bodyMedium?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
                 PopupMenuItem(
                   value: UserPermission.admin,
                   child: Row(

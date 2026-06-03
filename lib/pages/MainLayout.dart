@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:letsplay/utils/permissions.dart';
 import '../main.dart';
+// import '../services/profile_loader.dart';
+// loadProfileSafe/permissionFromRole come from main.dart for now.
+
 import '../services/store_store.dart';
 import '../services/language.dart';
 import '../widgets/App_Bottom_Nav.dart';
@@ -106,7 +109,9 @@ class _StoreTabState extends State<_StoreTab> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  ar ? 'يرجى تسجيل الدخول للوصول إلى المتجر' : 'Please login to access the store',
+                  ar
+                      ? 'يرجى تسجيل الدخول للوصول إلى المتجر'
+                      : 'Please login to access the store',
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
                   ),
@@ -120,8 +125,13 @@ class _StoreTabState extends State<_StoreTab> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                   ),
                 ),
               ],
@@ -144,7 +154,7 @@ class _FieldsTab extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
     final ar = ctrl.isArabic;
-    
+
     // 🔒 If user is null (guest mode), show login required
     if (user == null) {
       return Scaffold(
@@ -185,8 +195,13 @@ class _FieldsTab extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                   ),
                 ),
               ],
@@ -225,7 +240,7 @@ class _ProfileTab extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     final theme = Theme.of(context);
     final ar = ctrl.isArabic;
-    
+
     // 🔒 If user is null (guest mode), show login required
     if (user == null) {
       return Scaffold(
@@ -266,8 +281,13 @@ class _ProfileTab extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                    ),
                   ),
                 ),
               ],

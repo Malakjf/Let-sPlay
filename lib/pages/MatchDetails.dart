@@ -720,7 +720,6 @@ class MatchDetailsScreen extends StatelessWidget {
     }
 
     final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
     final String? pitchType = match['pitchType']?.toString();
     final String? gender = match['gender']?.toString();
     final String price = _formatNumber(match['price']);
@@ -1033,245 +1032,141 @@ class MatchDetailsScreen extends StatelessWidget {
                       (snapshot.data != null && snapshot.data!.isNotEmpty)
                       ? (snapshot.data![0] ?? 'none') as String
                       : 'none';
-                  final roleRaw =
-                      (snapshot.data != null && snapshot.data!.length > 1)
-                      ? snapshot.data![1]
-                      : null;
-                  final role = roleRaw?.toString().toLowerCase();
-
-                  // Check if the current user is a manager for THIS specific match.
-                  bool isMatchManager = false;
-                  if (currentUserId != null) {
-                    final organizers = List<dynamic>.from(
-                      match['organizers'] ?? [],
-                    );
-                    final coaches = List<dynamic>.from(match['coaches'] ?? []);
-                    final referees = List<dynamic>.from(
-                      match['referees'] ?? [],
-                    );
-
-                    isMatchManager =
-                        organizers
-                            .map((e) => e.toString())
-                            .contains(currentUserId) ||
-                        coaches
-                            .map((e) => e.toString())
-                            .contains(currentUserId) ||
-                        referees
-                            .map((e) => e.toString())
-                            .contains(currentUserId) ||
-                        match['organizerId']?.toString() == currentUserId ||
-                        match['coachId']?.toString() == currentUserId ||
-                        match['refereeId']?.toString() == currentUserId;
-                  }
-
-                  final isGlobalPrivileged =
-                      role != null &&
-                      ['admin', 'coach', 'organizer'].contains(role);
-
-                  // If user is either a match manager or a global privileged role, show View Players and Join options
-                  if (isMatchManager || isGlobalPrivileged) {
-                    return Center(
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  final matchId =
-                                      match['matchId'] ?? match['id'];
-                                  if (matchId != null) {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => PlayersScreen(
-                                          ctrl: ctrl,
-                                          matchId: matchId.toString(),
-                                          title: ar ? 'اللاعبين' : 'Players',
-                                        ),
-                                        settings: RouteSettings(
-                                          arguments: matchId.toString(),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.visibility),
-                                label: Text(
-                                  ar ? 'عرض اللاعبين' : 'View Players',
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.green,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 12,
+                  final matchId = match['matchId'] ?? match['id'];
+                  return Center(
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        // 1. View Players Button
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            final mId = match['matchId'] ?? match['id'];
+                            if (mId != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => PlayersScreen(
+                                    ctrl: ctrl,
+                                    matchId: mId.toString(),
+                                    title: ar ? 'اللاعبين' : 'Players',
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
+                                  settings: RouteSettings(
+                                    arguments: mId.toString(),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              // Join/status button (show status or allow join)
-                              if (status != 'none')
-                                ElevatedButton(
-                                  onPressed: null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: status == 'confirmed'
-                                        ? Colors.green
-                                        : (status == 'waiting'
-                                              ? Colors.orange
-                                              : Colors.blueGrey),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    status == 'confirmed'
-                                        ? (ar ? 'تم الانضمام' : 'Joined')
-                                        : (status == 'waiting'
-                                              ? (ar
-                                                    ? 'قائمة الانتظار'
-                                                    : 'Waiting')
-                                              : (ar
-                                                    ? 'قيد الانتظار'
-                                                    : 'Pending')),
-                                  ),
-                                )
-                              else
-                                ElevatedButton(
-                                  onPressed: isMatchEnded
-                                      ? null
-                                      : () => MatchesService().joinMatch(
-                                          context: context,
-                                          match: match,
-                                          ar: ar,
-                                        ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: isMatchEnded
-                                        ? Colors.grey
-                                        : (playersCount >= maxPlayers
-                                              ? Colors.orange
-                                              : theme.colorScheme.primary),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                      vertical: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    playersCount >= maxPlayers
-                                        ? (ar
-                                              ? 'انضم إلى قائمة الانتظار'
-                                              : 'Join Waiting List')
-                                        : (ar
-                                              ? 'انضم إلى المباراة'
-                                              : 'Join Match'),
-                                  ),
-                                ),
-                              // Leave button (if user is part of match)
-                              if (status == 'confirmed' ||
-                                  status == 'waiting') ...[
-                                const SizedBox(width: 8),
-                                OutlinedButton.icon(
-                                  onPressed: () async {
-                                    final confirm = await showDialog<bool>(
-                                      context: context,
-                                      builder: (c) => AlertDialog(
-                                        title: Text(ar ? 'تأكيد' : 'Confirm'),
-                                        content: Text(
-                                          ar
-                                              ? 'هل أنت متأكد من مغادرة هذه المباراة؟'
-                                              : 'Are you sure you want to leave this match?',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(c, false),
-                                            child: Text(
-                                              ar ? 'إلغاء' : 'Cancel',
-                                            ),
-                                          ),
-                                          TextButton(
-                                            onPressed: () =>
-                                                Navigator.pop(c, true),
-                                            child: Text(
-                                              ar ? 'مغادرة' : 'Leave',
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                    if (confirm == true) {
-                                      await _leaveMatch(context, match, ar);
-                                    }
-                                  },
-                                  icon: const Icon(Icons.exit_to_app),
-                                  label: Text(ar ? 'مغادرة' : 'Leave'),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.red,
-                                    side: const BorderSide(color: Colors.red),
-                                  ),
-                                ),
-                              ],
-                            ],
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.visibility),
+                          label: Text(ar ? 'عرض اللاعبين' : 'View Players'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
-                        ],
-                      ),
-                    );
-                  }
+                        ),
 
-                  // Fallback to previous behavior for regular users
-                  // For all other users (players, or admins not assigned to this match).
-                  if (status != 'none') {
-                    // User has some status (confirmed, pending, waiting, rejected)
-                    String label;
-                    Color color;
+                        // 1.5 Add User Button (Visible to all auth users)
+                        if (currentUserId != null && !isMatchEnded)
+                          ElevatedButton.icon(
+                            onPressed: () => _showAddUserDialog(
+                              context,
+                              matchId,
+                              playersCount,
+                              maxPlayers,
+                              ar,
+                            ),
+                            icon: const Icon(Icons.person_add_alt_1),
+                            label: Text(ar ? 'إضافة لاعب' : 'Add User'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF151B3D),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
 
-                    switch (status) {
-                      case 'confirmed':
-                        label = ar ? 'تم الانضمام' : 'Joined';
-                        color = Colors.green;
-                        break;
-                      case 'waiting':
-                        label = ar ? 'قائمة الانتظار' : 'Waiting List';
-                        color = Colors.orange;
-                        break;
-                      case 'rejected':
-                        label = ar ? 'مرفوض' : 'Rejected';
-                        color = Colors.red;
-                        break;
-                      default: // pending
-                        label = ar ? 'قيد الانتظار' : 'Request Pending';
-                        color = Colors.blueGrey;
-                    }
-
-                    return Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
+                        // 2. Join / Status Button
+                        if (status != 'none')
                           ElevatedButton(
                             onPressed: null,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: color,
-                              disabledBackgroundColor: color,
+                              backgroundColor: status == 'confirmed'
+                                  ? Colors.green
+                                  : (status == 'waiting'
+                                        ? Colors.orange
+                                        : Colors.blueGrey),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 14,
+                                horizontal: 20,
+                                vertical: 12,
                               ),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(20),
                               ),
                             ),
                             child: Text(
-                              label,
+                              status == 'confirmed'
+                                  ? (ar ? 'تم الانضمام' : 'Joined')
+                                  : (status == 'waiting'
+                                        ? (ar ? 'قائمة الانتظار' : 'Waiting')
+                                        : (ar ? 'قيد الانتظار' : 'Pending')),
+                            ),
+                          )
+                        else if (isMatchEnded)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(24),
+                            ),
+                            child: Text(
+                              ar ? 'المباراة انتهت' : 'Match Ended',
+                              style: const TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          )
+                        else
+                          ElevatedButton(
+                            onPressed: () => MatchesService().joinMatch(
+                              context: context,
+                              match: match,
+                              ar: ar,
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: playersCount >= maxPlayers
+                                  ? Colors.orange
+                                  : theme.colorScheme.primary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: Text(
+                              playersCount >= maxPlayers
+                                  ? (ar
+                                        ? 'انضم إلى قائمة الانتظار'
+                                        : 'Join Waiting List')
+                                  : (ar ? 'انضم إلى المباراة' : 'Join Match'),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,
@@ -1279,106 +1174,53 @@ class MatchDetailsScreen extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (status == 'confirmed' || status == 'waiting') ...[
-                            const SizedBox(width: 12),
-                            OutlinedButton.icon(
-                              onPressed: () async {
-                                final confirm = await showDialog<bool>(
-                                  context: context,
-                                  builder: (c) => AlertDialog(
-                                    title: Text(ar ? 'تأكيد' : 'Confirm'),
-                                    content: Text(
-                                      ar
-                                          ? 'هل أنت متأكد من مغادرة هذه المباراة؟'
-                                          : 'Are you sure you want to leave this match?',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.pop(c, false),
-                                        child: Text(ar ? 'إلغاء' : 'Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(c, true),
-                                        child: Text(ar ? 'مغادرة' : 'Leave'),
-                                      ),
-                                    ],
+
+                        // 3. Leave Button
+                        if (status == 'confirmed' || status == 'waiting')
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (c) => AlertDialog(
+                                  title: Text(ar ? 'تأكيد' : 'Confirm'),
+                                  content: Text(
+                                    ar
+                                        ? 'هل أنت متأكد من مغادرة هذه المباراة؟'
+                                        : 'Are you sure you want to leave this match?',
                                   ),
-                                );
-                                if (confirm == true) {
-                                  await _leaveMatch(context, match, ar);
-                                }
-                              },
-                              icon: const Icon(Icons.exit_to_app),
-                              label: Text(ar ? 'مغادرة' : 'Leave'),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.red,
-                                side: const BorderSide(color: Colors.red),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(c, false),
+                                      child: Text(ar ? 'إلغاء' : 'Cancel'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(c, true),
+                                      child: Text(ar ? 'مغادرة' : 'Leave'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                await _leaveMatch(context, match, ar);
+                              }
+                            },
+                            icon: const Icon(Icons.exit_to_app),
+                            label: Text(ar ? 'مغادرة' : 'Leave'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                          ],
-                        ],
-                      ),
-                    );
-                  } else {
-                    // User is not in match - show "Join Match" button
-                    if (isMatchEnded) {
-                      return Center(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          child: Text(
-                            ar ? 'المباراة انتهت' : 'Match Ended',
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return Center(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          MatchesService().joinMatch(
-                            context: context,
-                            match: match,
-                            ar: ar,
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: playersCount >= maxPlayers
-                              ? Colors.orange
-                              : theme.colorScheme.primary,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        child: Text(
-                          playersCount >= maxPlayers
-                              ? (ar
-                                    ? 'انضم إلى قائمة الانتظار'
-                                    : 'Join Waiting List')
-                              : (ar ? 'انضم إلى المباراة' : 'Join Match'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  }
+                      ],
+                    ),
+                  );
                 },
               ),
 
@@ -2544,6 +2386,39 @@ class MatchDetailsScreen extends StatelessWidget {
     }
   }
 
+  /// Show dialog to add a user to the match
+  void _showAddUserDialog(
+    BuildContext context,
+    String matchId,
+    int playersCount,
+    int maxPlayers,
+    bool ar,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color:
+                Theme.of(context).appBarTheme.backgroundColor ??
+                Colors.grey[900],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: _UserSelectionView(
+            matchId: matchId,
+            scrollController: scrollController,
+            ar: ar,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Allow current user to leave a match (remove from players or waiting list)
   Future<void> _leaveMatch(
     BuildContext context,
@@ -2637,5 +2512,164 @@ class MatchDetailsScreen extends StatelessWidget {
         ),
       );
     }
+  }
+}
+
+class _UserSelectionView extends StatefulWidget {
+  final String matchId;
+  final ScrollController scrollController;
+  final bool ar;
+
+  const _UserSelectionView({
+    required this.matchId,
+    required this.scrollController,
+    required this.ar,
+  });
+
+  @override
+  State<_UserSelectionView> createState() => _UserSelectionViewState();
+}
+
+class _UserSelectionViewState extends State<_UserSelectionView> {
+  String _searchQuery = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        const SizedBox(height: 12),
+        Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: Colors.white24,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: TextField(
+            onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: widget.ar
+                  ? 'ابحث عن لاعب...'
+                  : 'Search for a player...',
+              hintStyle: const TextStyle(color: Colors.white54),
+              prefixIcon: const Icon(Icons.search, color: Colors.white54),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.05),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(15),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: FirebaseService.instance.getAllUsers(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final users = snapshot.data!.where((u) {
+                final name = (u['name'] ?? u['username'] ?? '')
+                    .toString()
+                    .toLowerCase();
+                return name.contains(_searchQuery);
+              }).toList();
+
+              return ListView.builder(
+                controller: widget.scrollController,
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final user = users[index];
+                  final uid = user['uid'] ?? user['id'];
+                  final avatar = user['avatarUrl'] ?? '';
+                  final position = user['position'] ?? 'ST';
+                  final role = user['role'] ?? 'Player';
+
+                  return ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.white10,
+                      backgroundImage: avatar.isNotEmpty
+                          ? NetworkImage(avatar)
+                          : null,
+                      child: avatar.isEmpty
+                          ? const Icon(Icons.person, color: Colors.white54)
+                          : null,
+                    ),
+                    title: Text(
+                      user['name'] ?? user['username'] ?? 'User',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '$position • $role',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                    trailing: ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await FirebaseService.instance.addOtherUserToMatch(
+                            matchId: widget.matchId,
+                            targetUserId: uid,
+                          );
+                          if (mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  widget.ar
+                                      ? 'تمت إضافة اللاعب'
+                                      : 'Player added successfully',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          String msg = e.toString();
+                          if (msg.contains('MATCH_FULL')) {
+                            msg = widget.ar
+                                ? 'المباراة مكتملة'
+                                : 'Match is full';
+                          } else if (msg.contains('already in the match')) {
+                            msg = widget.ar
+                                ? 'اللاعب موجود بالفعل'
+                                : 'Player already in match';
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(msg),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      child: Text(widget.ar ? 'إضافة' : 'Add'),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 }

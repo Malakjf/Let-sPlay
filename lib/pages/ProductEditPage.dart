@@ -184,11 +184,14 @@ class _ProductEditPageState extends State<ProductEditPage> {
                     initialImageUrl: _imageUrl,
                     height: 200,
                     label: ar ? 'صورة المنتج' : 'Product Image',
-                    onUploadSuccess: (imageUrl) {
+                    onUploadSuccess: (imageUrl, publicId) {
                       setState(() {
                         _imageUrl = imageUrl;
                       });
                     },
+                    onDelete: () => setState(() {
+                      _imageUrl = null;
+                    }),
                     onUploadError: (error) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

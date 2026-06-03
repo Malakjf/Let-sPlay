@@ -1,163 +1,73 @@
-import 'dart:io';
-import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart';
+import '../widgets/UpdatePopup.dart';
 
+/// 🚀 Service to handle global app version checks and update notifications
 class UpdateService {
-  static bool _hasChecked = false;
+  UpdateService._();
+  static final instance = UpdateService._();
 
-  /// Main entry point to check for updates. Typically called once in Home initState.
-  static Future<void> checkForUpdate(BuildContext context) async {
-    if (_hasChecked) return;
-    _hasChecked = true;
-
+  /// Fetches the latest version info from Firestore and compares with installed version
+  Future<void> checkForUpdates(BuildContext context) async {
     try {
-      // 1. Get current app version
-      final packageInfo = await PackageInfo.fromPlatform();
-      final currentVersion = packageInfo.version;
-
-      // 2. Fetch config from Firestore
       final doc = await FirebaseFirestore.instance
-          .collection('app_config')
-          .doc('version')
+          .collection('app_updates')
+          .doc('latest')
           .get();
 
       if (!doc.exists) return;
 
-      final data = doc.data()!;
-      final latestVersion = data['latestVersion']?.toString() ?? '';
-      final forceUpdate = data['forceUpdate'] as bool? ?? false;
-      final updateMessage =
-          data['updateMessage']?.toString() ??
-          'A new version is available with exciting new features!';
-      final androidUrl = data['androidUrl']?.toString() ?? '';
-      final iosUrl = data['iosUrl']?.toString() ?? '';
+      final raw = doc.data();
+      final data = raw == null
+          ? <String, dynamic>{}
+          : Map<String, dynamic>.from(raw);
+      final latestVersion = data['latestVersion'] as String? ?? '1.0.0';
+      final isMandatory = data['isMandatory'] as bool? ?? false;
 
-      // 3. Compare versions
-      if (_shouldUpdate(currentVersion, latestVersion)) {
-        if (context.mounted) {
-          _showUpdateDialog(
-            context,
-            forceUpdate: forceUpdate,
-            message: updateMessage,
-            androidUrl: androidUrl,
-            iosUrl: iosUrl,
-          );
+      final packageInfo = await PackageInfo.fromPlatform();
+      final currentVersion = packageInfo.version;
+
+      if (_isNewerVersion(latestVersion, currentVersion)) {
+        final prefs = await SharedPreferences.getInstance();
+        final lastSeenVersion = prefs.getString('last_seen_update_version');
+
+        // Show if mandatory OR if the user hasn't seen this specific version yet
+        if (isMandatory || lastSeenVersion != latestVersion) {
+          if (context.mounted) {
+            // Ensure data is a Map<String, dynamic> to avoid runtime type errors
+            final dataMap = Map<String, dynamic>.from(data);
+            showDialog(
+              context: context,
+              builder: (context) => UpdatePopup(data: dataMap),
+            );
+            if (!isMandatory) {
+              await prefs.setString('last_seen_update_version', latestVersion);
+            }
+          }
         }
       }
     } catch (e) {
-      debugPrint('❌ UpdateService Error: $e');
-      // Fail silently in production to avoid crashing user experience
+      debugPrint('⚠️ Update check error: $e');
     }
   }
 
-  /// Compares semantic versions (e.g., "1.0.0" vs "1.1.0")
-  static bool _shouldUpdate(String current, String latest) {
-    if (latest.isEmpty) return false;
-
-    try {
-      final currentParts = current
-          .split('.')
-          .map((e) => int.tryParse(e) ?? 0)
-          .toList();
-      final latestParts = latest
-          .split('.')
-          .map((e) => int.tryParse(e) ?? 0)
-          .toList();
-
-      for (var i = 0; i < 3; i++) {
-        final currPart = i < currentParts.length ? currentParts[i] : 0;
-        final latestPart = i < latestParts.length ? latestParts[i] : 0;
-
-        if (latestPart > currPart) return true;
-        if (latestPart < currPart) return false;
+  bool _isNewerVersion(String latest, String current) {
+    final latestParts = latest
+        .split('.')
+        .map((e) => int.tryParse(e) ?? 0)
+        .toList();
+    final currentParts = current
+        .split('.')
+        .map((e) => int.tryParse(e) ?? 0)
+        .toList();
+    for (var i = 0; i < latestParts.length; i++) {
+      if (i >= currentParts.length || latestParts[i] > currentParts[i]) {
+        return true;
       }
-    } catch (_) {
-      return false;
+      if (latestParts[i] < currentParts[i]) return false;
     }
     return false;
-  }
-
-  static void _showUpdateDialog(
-    BuildContext context, {
-    required bool forceUpdate,
-    required String message,
-    required String androidUrl,
-    required String iosUrl,
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: !forceUpdate,
-      builder: (context) {
-        return PopScope(
-          canPop: !forceUpdate,
-          child: AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: Text(
-              'Update Available 🚀',
-              style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.bold),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(message, style: GoogleFonts.spaceGrotesk()),
-                if (forceUpdate)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 16.0),
-                    child: Text(
-                      'This update is required to continue using the app.',
-                      style: TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            actions: [
-              if (!forceUpdate)
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Later',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => _launchStore(androidUrl, iosUrl),
-                child: const Text('Update Now'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  static Future<void> _launchStore(String androidUrl, String iosUrl) async {
-    final urlString = Platform.isAndroid ? androidUrl : iosUrl;
-    if (urlString.isEmpty) return;
-
-    final url = Uri.parse(urlString);
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      }
-    } catch (e) {
-      debugPrint('❌ Could not launch store URL: $e');
-    }
   }
 }

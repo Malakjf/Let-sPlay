@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../services/player_attributes_store.dart';
 import '../services/player_stats_store.dart';
@@ -434,9 +435,11 @@ class CompletePlayerProfile extends StatelessWidget {
     final attributesStore = context.read<PlayerAttributesStore>();
 
     // Simulate coach rating update (this will trigger attribute animations)
-    attributesStore.updateFromCoachEvaluation(
+    attributesStore.submitEvaluation(
       playerId: playerId,
+      playerName: 'Lionel Messi',
       position: 'RW',
+      ratedByRole: 'coach',
       evaluation: const CoachEvaluation(
         paceRating: 88,
         shootingRating: 93,
@@ -447,6 +450,9 @@ class CompletePlayerProfile extends StatelessWidget {
         physicalCondition: 0.95,
         recentPerformance: 0.88,
       ),
+      ratedById: FirebaseAuth.instance.currentUser?.uid ?? 'anonymous_coach',
+      ratedByName:
+          FirebaseAuth.instance.currentUser?.displayName ?? 'Anonymous Coach',
     );
 
     ScaffoldMessenger.of(context).showSnackBar(

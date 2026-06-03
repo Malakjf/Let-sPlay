@@ -1,11 +1,15 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart' show FieldValue;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show Uint8List, kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:io';
-import '../services/language.dart';
-import '../services/firebase_service.dart';
+
 import '../services/cloudinary_service.dart';
+import '../services/firebase_service.dart';
+import '../services/language.dart';
+import '../utils/image_helper.dart';
 import '../widgets/LogoButton.dart';
 
 class ProfileDetailsScreen extends StatefulWidget {
@@ -120,7 +124,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
     _dobController.dispose();
     _cityController.dispose();
     _areaController.dispose();
-   // _postalCodeController.dispose();
+    // _postalCodeController.dispose();
     _clubController.dispose();
     _walletController.dispose();
     super.dispose();
@@ -157,7 +161,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
             _dobController.text = data['dateOfBirth'] ?? data['dob'] ?? '';
             _cityController.text = data['city'] ?? '';
             _areaController.text = data['area'] ?? '';
-           // _postalCodeController.text = data['postalCode'] ?? '';
+            // _postalCodeController.text = data['postalCode'] ?? '';
             _clubController.text = data['club'] ?? '';
             // Wallet uses walletCredit field from Firebase
             final walletValue = data['walletCredit'] ?? data['wallet'] ?? 0;
@@ -248,6 +252,11 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
           try {
             final userId = user.uid;
             if (_avatarImage is Uint8List) {
+              // Evict old cache
+              await ImageHelper.evictImage(
+                _userData?['avatarUrl'],
+              ); // Evict old image
+
               // Web: upload bytes
               avatarUrl = await CloudinaryService.instance.uploadAvatar(
                 imageBytes: _avatarImage as Uint8List,
@@ -255,6 +264,10 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
               );
             } else if (_avatarImage is File) {
               // Mobile: upload file
+              await ImageHelper.evictImage(
+                _userData?['avatarUrl'],
+              ); // Evict old image
+
               final bytes = await (_avatarImage as File).readAsBytes();
               avatarUrl = await CloudinaryService.instance.uploadAvatar(
                 imageBytes: bytes,
@@ -321,7 +334,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
               ? 'https://flagcdn.com/w320/${_countryOptions[_selectedCountry!]}.png'
               : '',
           'avatarUrl': avatarUrl ?? _userData?['avatarUrl'] ?? '',
-          'updatedAt': DateTime.now().toIso8601String(),
+          'updatedAt': FieldValue.serverTimestamp(),
         };
 
         // Ensure all player metrics are included
@@ -433,7 +446,7 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
             ? _parseDateOfBirth(_dobController.text)
             : DateTime.now().subtract(const Duration(days: 365 * 16)),
         firstDate: DateTime(1950),
-        lastDate: DateTime.now().subtract(const Duration(days: 365 * 13)),
+        lastDate: DateTime.now(),
         builder: (context, child) {
           return Theme(
             data: Theme.of(context).copyWith(
@@ -727,12 +740,12 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
       if (kDebugMode) {
         print('🌐 Using network avatar URL: ${_userData!['avatarUrl']}');
       }
-      // Add cache-busting timestamp to force reload when image changes
       final avatarUrl = _userData!['avatarUrl'];
-      final cacheBustedUrl = avatarUrl.contains('?')
-          ? '$avatarUrl&t=${DateTime.now().millisecondsSinceEpoch}'
-          : '$avatarUrl?t=${DateTime.now().millisecondsSinceEpoch}';
-      return NetworkImage(cacheBustedUrl);
+
+      // Use refresh helper to ensure we have the most current version
+      final freshUrl = ImageHelper.refreshImageUrl(avatarUrl);
+
+      return NetworkImage(freshUrl); // Use NetworkImage with freshUrl
     }
 
     if (kDebugMode) print('👤 No avatar found, using default icon');
@@ -1051,7 +1064,6 @@ class _ProfileDetailsScreenState extends State<ProfileDetailsScreen> {
                                 enabled: _isEditing,
                               ),
 
-                            
                               // Role (read-only)
                               _buildReadOnlyField(
                                 label: ar ? 'الدور' : 'Role',

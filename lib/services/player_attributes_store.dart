@@ -7,13 +7,12 @@ import 'dart:async';
 /// FIFA / PlayFootball.me Pattern:
 /// - Attributes are NOT static data
 /// - Coach evaluation is the source of truth
-/// - PAC, SHO, PAS, DRI, DEF, PHY calculated dynamically
-/// - FUT card reads from this store only
+/// - Modernized: Admin Approval Workflow (Admin/Coach/Player roles)
 ///
 /// Architecture:
 /// - Store: Map<PlayerId, PlayerAttributes>
-/// - Coach updates ratings → Attributes recalculate → UI updates
-/// - Firestore persistence layer (optional)
+/// - Evaluation Staging: 'evaluations' collection
+/// - Active Ratings: 'users/{id}/metrics' (Only updated on approval)
 class PlayerAttributesStore extends ChangeNotifier {
   // Map<playerId, attributes>
   final Map<String, PlayerAttributes> _attributes = {};
@@ -83,19 +82,21 @@ class PlayerAttributesStore extends ChangeNotifier {
   /// - Physical condition
   /// - Recent performance
   /// - Tactical role
-  void updateFromCoachEvaluation({
+  Future<void> submitEvaluation({
     required String playerId,
+    required String playerName,
     required String position,
     required CoachEvaluation evaluation,
-  }) {
-    // 🛡️ Mark as local update
-    _markLocalUpdate(playerId);
-
+    required String ratedById,
+    required String ratedByName,
+    required String ratedByRole,
+    String notes = "",
+  }) async {
     // Calculate base values based on position
     final baseValues = _getPositionBaseValues(position);
 
-    // Apply coach ratings to calculate final attributes
-    final attributes = PlayerAttributes(
+    // 1. Calculate the FIFA-style attributes locally
+    final calculatedMetrics = PlayerAttributes(
       pace: _calculateAttribute(
         base: baseValues.pace,
         coachRating: evaluation.paceRating,
@@ -135,13 +136,106 @@ class PlayerAttributesStore extends ChangeNotifier {
       position: position,
     );
 
-    _attributes[playerId] = attributes;
-    notifyListeners(); // ✅ Live update to FUT card
+    // 2. Prepare Evaluation Document
+    final bool isAdmin = ratedByRole.toLowerCase() == 'admin';
+    final String status = isAdmin ? 'approved' : 'pending';
 
-    // Debounced Firestore write
-    _saveToFirestore(playerId, attributes);
+    final evalDoc = {
+      'playerId': playerId,
+      'playerName': playerName,
+      'position': position,
+      'ratedById': ratedById,
+      'ratedByName': ratedByName,
+      'ratedByRole': ratedByRole,
+      'status': status,
+      'notes': notes,
+      'createdAt': FieldValue.serverTimestamp(),
+      'metrics': calculatedMetrics.toMap(),
+      'coachEvaluation': {
+        'paceRating': evaluation.paceRating,
+        'shootingRating': evaluation.shootingRating,
+        'passingRating': evaluation.passingRating,
+        'dribblingRating': evaluation.dribblingRating,
+        'defendingRating': evaluation.defendingRating,
+        'physicalRating': evaluation.physicalRating,
+        'physicalCondition': evaluation.physicalCondition,
+        'recentPerformance': evaluation.recentPerformance,
+      },
+    };
 
-    debugPrint('🏆 Coach evaluated $playerId: ${attributes.toMap()}');
+    try {
+      final docRef = await _firestore.collection('evaluations').add(evalDoc);
+
+      // 3. If Admin, apply changes immediately to Player Profile
+      if (isAdmin) {
+        await _applyEvaluationToPlayer(
+          playerId,
+          calculatedMetrics,
+          docRef.id,
+          ratedById,
+        );
+      }
+      debugPrint(
+        '📝 Evaluation $status for $playerId submitted by $ratedByRole',
+      );
+      return; // Explicit return for Future<void>
+    } catch (e) {
+      debugPrint('❌ Failed to submit evaluation: $e');
+    }
+  }
+
+  /// 🛡️ ADMIN ONLY: Approve or Reject a coach evaluation
+  Future<void> reviewEvaluation({
+    required String evaluationId,
+    required String playerId,
+    required bool approve,
+    required String adminId,
+    String? adminNotes,
+    Map<String, dynamic>? adminEdits, // Ability to edit before approval
+  }) async {
+    try {
+      final evalRef = _firestore.collection('evaluations').doc(evaluationId);
+
+      if (!approve) {
+        await evalRef.update({
+          'status': 'rejected',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return;
+      }
+
+      // Get the evaluation data
+      final snapshot = await evalRef.get();
+      if (!snapshot.exists) return;
+
+      final data = snapshot.data()!;
+      final metrics = PlayerAttributes.fromMap(data['metrics']);
+
+      // Update Evaluation Status
+      await evalRef.update({
+        'status': 'approved',
+        'approvedBy': adminId,
+        'approvedAt': FieldValue.serverTimestamp(),
+        'editedByAdmin': adminEdits != null,
+        if (adminNotes != null) 'adminNotes': adminNotes,
+        if (adminEdits != null) 'metrics': adminEdits,
+      });
+
+      // Update Player Profile (This makes it live for the Player/Card)
+      final finalMetrics = adminEdits != null
+          ? PlayerAttributes.fromMap(adminEdits)
+          : metrics;
+      await _applyEvaluationToPlayer(
+        playerId,
+        finalMetrics,
+        evaluationId,
+        adminId,
+      );
+
+      debugPrint('✅ Admin $adminId approved evaluation $evaluationId');
+    } catch (e) {
+      debugPrint('❌ Error reviewing evaluation: $e');
+    }
   }
 
   /// 🧤 Update GK Attributes from Match Stats
@@ -153,7 +247,7 @@ class PlayerAttributesStore extends ChangeNotifier {
   /// - physical -> CS (Clean Sheet Rating)
   /// - passing -> PAS (Passing Rating)
   void updateGkAttributesFromStats({
-    required String playerId,
+    required String playerId, // Assuming this is the player being updated
     required int saves,
     required int goalsReceived,
     required int cleanSheet,
@@ -161,6 +255,7 @@ class PlayerAttributesStore extends ChangeNotifier {
   }) {
     // 🛡️ Mark as local update
     _markLocalUpdate(playerId);
+    // This method should be async to handle potential Firestore operations
 
     // Get current attributes or defaults
     final current = _attributes[playerId] ?? _getPositionBaseValues('GK');
@@ -189,8 +284,17 @@ class PlayerAttributesStore extends ChangeNotifier {
     );
 
     _attributes[playerId] = newAttributes;
-    notifyListeners();
-    _saveToFirestore(playerId, newAttributes);
+    notifyListeners(); // Notify listeners for immediate UI update
+
+    // Directly apply to player's metrics. For GK stats, we assume they are
+    // direct updates and don't go through the 'evaluations' collection for approval.
+    // We'll use a placeholder for sourceEvalId and actorId.
+    _applyEvaluationToPlayer(
+      playerId,
+      newAttributes,
+      'gk_stats_update_${DateTime.now().millisecondsSinceEpoch}',
+      'system_gk_updater',
+    );
 
     debugPrint(
       '🧤 GK Stats updated for $playerId: SAV=$savRating, GR=$grRating, CS=$csRating',
@@ -229,98 +333,89 @@ class PlayerAttributesStore extends ChangeNotifier {
       case 'ST':
       case 'CF':
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 35,
+          shooting: 40,
+          passing: 20,
+          dribbling: 30,
+          defending: 10,
+          physical: 25,
         );
 
       case 'LW':
       case 'RW':
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 45,
+          shooting: 30,
+          passing: 30,
+          dribbling: 40,
+          defending: 10,
+          physical: 15,
         );
 
       // Midfielders
       case 'CAM':
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 30,
+          shooting: 30,
+          passing: 45,
+          dribbling: 45,
+          defending: 15,
+          physical: 20,
         );
 
       case 'CM':
-        return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
-        );
-
       case 'CDM':
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 25,
+          shooting: 20,
+          passing: 35,
+          dribbling: 30,
+          defending: 35,
+          physical: 35,
         );
 
       // Defenders
       case 'LB':
       case 'RB':
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 40,
+          shooting: 15,
+          passing: 25,
+          dribbling: 30,
+          defending: 40,
+          physical: 35,
         );
 
       case 'CB':
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 20,
+          shooting: 10,
+          passing: 20,
+          dribbling: 15,
+          defending: 45,
+          physical: 45,
         );
 
       // Goalkeeper
       case 'GK':
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 15,
+          shooting: 5,
+          passing: 15,
+          dribbling: 10,
+          defending: 30,
+          physical: 40,
         );
 
       // Default
       default:
         return const PlayerAttributes(
-          pace: 0,
-          shooting: 0,
-          passing: 0,
-          dribbling: 0,
-          defending: 0,
-          physical: 0,
+          pace: 20,
+          shooting: 20,
+          passing: 20,
+          dribbling: 20,
+          defending: 20,
+          physical: 20,
         );
     }
   }
@@ -334,38 +429,37 @@ class PlayerAttributesStore extends ChangeNotifier {
     });
   }
 
-  /// Save to Firestore (debounced)
-  void _saveToFirestore(String playerId, PlayerAttributes attributes) {
-    // Cancel existing timer
-    _debounceTimers[playerId]?.cancel();
+  /// Internal helper to sync approved metrics to the player document
+  Future<void> _applyEvaluationToPlayer(
+    String playerId,
+    PlayerAttributes attributes,
+    String sourceEvalId,
+    String actorId,
+  ) async {
+    _markLocalUpdate(playerId);
+    _attributes[playerId] = attributes;
+    notifyListeners();
 
-    // Start new timer
-    _debounceTimers[playerId] = Timer(
-      const Duration(milliseconds: 500),
-      () async {
-        try {
-          final data = attributes.toMap();
+    try {
+      final data = attributes.toMap();
 
-          // 🧤 Add GK specific metrics if applicable
-          if (attributes.position == 'GK') {
-            data['gk'] = {
-              'gr': attributes.pace,
-              'sav': attributes.defending,
-              'cs': attributes.physical,
-              'pas': attributes.passing,
-            };
-          }
+      if (attributes.position == 'GK') {
+        data['gk'] = {
+          'gr': attributes.pace,
+          'sav': attributes.defending,
+          'cs': attributes.physical,
+          'pas': attributes.passing,
+        };
+      }
 
-          await _firestore.collection('users').doc(playerId).set({
-            'metrics': data,
-            'lastAttributeUpdate': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-          debugPrint('💾 Saved attributes for $playerId');
-        } catch (e) {
-          debugPrint('❌ Failed to save attributes: $e');
-        }
-      },
-    );
+      await _firestore.collection('users').doc(playerId).set({
+        'metrics': data,
+        'lastAttributeUpdate': FieldValue.serverTimestamp(),
+        'lastApprovedEvaluationId': sourceEvalId,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('❌ Sync to player profile failed: $e');
+    }
   }
 
   /// Initialize attributes from Firestore

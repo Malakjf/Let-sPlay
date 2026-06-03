@@ -1,7 +1,10 @@
+import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/cloudinary_service.dart';
+import '../utils/image_helper.dart';
 
 /// Reusable image upload widget that works on Web + Mobile
 ///
@@ -22,10 +25,16 @@ class ImageUploadWidget extends StatefulWidget {
   final String? folder;
 
   /// Callback when upload is successful
-  final Function(String imageUrl) onUploadSuccess;
+  final Function(String imageUrl, String publicId) onUploadSuccess;
 
   /// Callback when upload fails
   final Function(String error)? onUploadError;
+
+  /// Callback when upload process starts
+  final VoidCallback? onUploadStarted;
+
+  /// Callback when image is removed
+  final VoidCallback? onDelete;
 
   /// Initial image URL to display
   final String? initialImageUrl;
@@ -35,6 +44,9 @@ class ImageUploadWidget extends StatefulWidget {
 
   /// Height of the upload area
   final double? height;
+
+  /// Aspect ratio of the preview card (e.g., 16/9 for banners)
+  final double? aspectRatio;
 
   /// Border radius
   final double borderRadius;
@@ -53,8 +65,11 @@ class ImageUploadWidget extends StatefulWidget {
     required this.uploadPreset,
     required this.onUploadSuccess,
     this.publicId,
+    this.onUploadStarted,
     this.folder,
     this.onUploadError,
+    this.onDelete,
+    this.aspectRatio,
     this.initialImageUrl,
     this.width,
     this.height,
@@ -91,8 +106,8 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
 
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        maxWidth: 1920,
-        maxHeight: 1920,
+        maxWidth: 1280,
+        maxHeight: 1280,
         imageQuality: 85,
       );
 
@@ -127,14 +142,23 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       _error = null;
     });
 
+    widget.onUploadStarted?.call();
+
     try {
       debugPrint('📤 Starting upload');
-      final imageUrl = await _cloudinary.uploadImage(
+      // Evict current image from cache if it exists
+      if (_imageUrl != null) await ImageHelper.evictImage(_imageUrl);
+      // ImageHelper.evictImage already clears PaintingBinding.instance.imageCache
+
+      final result = await _cloudinary.uploadImage(
         imageBytes: _imageBytes!,
         uploadPreset: widget.uploadPreset,
         publicId: widget.publicId,
         folder: widget.folder,
       );
+
+      final imageUrl = result['url']!;
+      final publicId = result['public_id']!;
 
       debugPrint('✅ Upload successful: $imageUrl');
 
@@ -143,7 +167,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
           _imageUrl = imageUrl;
           _isUploading = false;
         });
-        widget.onUploadSuccess(imageUrl);
+        widget.onUploadSuccess(imageUrl, publicId);
       }
     } catch (e) {
       debugPrint('❌ Upload failed: $e');
@@ -203,23 +227,57 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
           Text(widget.label!, style: theme.textTheme.titleMedium),
           const SizedBox(height: 8),
         ],
-        InkWell(
-          onTap: _isUploading ? null : _showImageSourceDialog,
-          borderRadius: BorderRadius.circular(widget.borderRadius),
-          child: Container(
-            width: widget.width ?? double.infinity,
-            height: widget.height ?? 200,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(widget.borderRadius),
-              border: Border.all(
-                color: _error != null
-                    ? theme.colorScheme.error
-                    : theme.colorScheme.outline.withOpacity(0.3),
-                width: 2,
+        AspectRatio(
+          aspectRatio:
+              widget.aspectRatio ?? (widget.height == null ? 16 / 9 : 1.0),
+          child: InkWell(
+            onTap: _isUploading ? null : _showImageSourceDialog,
+            borderRadius: BorderRadius.circular(widget.borderRadius),
+            child: Container(
+              width: widget.width ?? double.infinity,
+              height: widget.height,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(widget.borderRadius),
+                border:
+                    (_imageUrl != null || _imageBytes != null || _isUploading)
+                    ? Border.all(
+                        color: _error != null
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.outline.withOpacity(0.3),
+                        width: 2,
+                      )
+                    : Border.all(
+                        color: _error != null
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.outline.withOpacity(0.2),
+                        width: 1.5,
+                      ),
+                boxShadow: [
+                  if (_imageUrl != null || _imageBytes != null)
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.1),
+                      blurRadius: 20,
+                      spreadRadius: -5,
+                      offset: const Offset(0, 10),
+                    ),
+                ],
+              ),
+              child: CustomPaint(
+                painter:
+                    (_imageUrl == null && _imageBytes == null && !_isUploading)
+                    ? DashedBorderPainter(
+                        color: _error != null
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.outline.withOpacity(0.3),
+                        borderRadius: widget.borderRadius,
+                        dash: 8,
+                        gap: 4,
+                      )
+                    : null,
+                child: _buildContent(theme),
               ),
             ),
-            child: _buildContent(theme),
           ),
         ),
         if (_error != null) ...[
@@ -250,9 +308,10 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       );
     }
 
-    // Show preview of selected image (before upload completes)
+    // Prepare image content
+    Widget? imageContent;
     if (_imageBytes != null) {
-      return ClipRRect(
+      imageContent = ClipRRect(
         borderRadius: BorderRadius.circular(widget.borderRadius - 2),
         child: Image.memory(
           _imageBytes!,
@@ -261,42 +320,87 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
           height: double.infinity,
         ),
       );
-    }
-
-    // Show uploaded image
-    if (_imageUrl != null &&
+    } else if (_imageUrl != null &&
         _imageUrl!.isNotEmpty &&
         (_imageUrl!.startsWith('http') || _imageUrl!.startsWith('https'))) {
+      imageContent = ClipRRect(
+        borderRadius: BorderRadius.circular(widget.borderRadius - 2),
+        child: CachedNetworkImage(
+          imageUrl: ImageHelper.refreshImageUrl(_imageUrl!),
+          cacheKey: '${_imageUrl!}_${DateTime.now().millisecondsSinceEpoch}',
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+          placeholder: (context, url) =>
+              const Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) => _buildPlaceholder(theme),
+        ),
+      );
+    }
+
+    if (imageContent != null) {
       return Stack(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(widget.borderRadius - 2),
-            child: Image.network(
-              _imageUrl!,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: double.infinity,
-              errorBuilder: (context, error, stackTrace) {
-                return _buildPlaceholder(theme);
-              },
-            ),
-          ),
-          // Change/Edit overlay
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(widget.borderRadius - 2),
-                color: Colors.black.withOpacity(0.3),
-              ),
-              child: const Icon(Icons.edit, color: Colors.white, size: 32),
+          Positioned.fill(child: imageContent),
+          // Top-right floating controls
+          Positioned(
+            top: 12,
+            right: 12,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildActionButton(
+                  icon: Icons.edit_outlined,
+                  onTap: _showImageSourceDialog,
+                  color: Colors.white,
+                ),
+                if (widget.onDelete != null) ...[
+                  const SizedBox(width: 8),
+                  _buildActionButton(
+                    icon: Icons.delete_outline,
+                    onTap: () {
+                      setState(() {
+                        _imageUrl = null;
+                        _imageBytes = null;
+                      });
+                      widget.onDelete!();
+                    },
+                    color: Colors.redAccent,
+                  ),
+                ],
+              ],
             ),
           ),
         ],
       );
     }
 
-    // Show placeholder
     return _buildPlaceholder(theme);
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required Color color,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Icon(icon, color: color, size: 20),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildPlaceholder(ThemeData theme) {
@@ -310,7 +414,7 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Tap to upload',
+          'Tap to upload image',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
@@ -318,4 +422,52 @@ class _ImageUploadWidgetState extends State<ImageUploadWidget> {
       ],
     );
   }
+}
+
+class DashedBorderPainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+  final double gap;
+  final double dash;
+  final double borderRadius;
+
+  DashedBorderPainter({
+    required this.color,
+    this.strokeWidth = 2.0,
+    this.gap = 5.0,
+    this.dash = 10.0,
+    this.borderRadius = 12.0,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final Path path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+          Radius.circular(borderRadius),
+        ),
+      );
+
+    final Path dashedPath = Path();
+    for (final PathMetric metric in path.computeMetrics()) {
+      double distance = 0.0;
+      while (distance < metric.length) {
+        dashedPath.addPath(
+          metric.extractPath(distance, distance + dash),
+          Offset.zero,
+        );
+        distance += dash + gap;
+      }
+    }
+    canvas.drawPath(dashedPath, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

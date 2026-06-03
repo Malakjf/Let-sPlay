@@ -16,6 +16,7 @@ class Player {
   final List<String> badges; // Add this field
   final int yellowCards;
   final int redCards;
+  final String notes;
 
   Player({
     required this.id,
@@ -35,5 +36,6 @@ class Player {
     required this.badges, // Add this parameter
     required this.yellowCards,
     required this.redCards,
+    required this.notes,
   });
 }

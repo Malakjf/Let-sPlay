@@ -8,13 +8,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:letsplay/services/player_attributes_store.dart';
 import 'package:provider/provider.dart';
 import 'dart:async'; // Add this import
-import 'services/firebase_service.dart';
+import 'services/firebase_service.dart'; // Import with alias to avoid naming conflict
 import 'services/firebase_options.dart';
-import 'services/notification_service.dart' show NotificationService;
+import 'services/notification_service.dart' as notification_service;
 import 'services/language.dart';
 import 'services/theme_controller.dart';
 import 'services/firestore_readiness_guard.dart';
 import 'utils/permissions.dart';
+import 'services/update_service.dart';
 import 'package:letsplay/services/player_stats_store.dart';
 import 'package:letsplay/services/player_metrics_store.dart';
 import 'theme/theme.dart';
@@ -45,6 +46,7 @@ import 'pages/RulesBookPage.dart';
 import 'pages/FutCardDemo.dart';
 import 'pages/MatchesPageEnhanced.dart';
 import 'pages/EditMatch.dart';
+import 'pages/UpdateManagementPage.dart';
 
 Future<T?> safeFirestore<T>(
   Future<T> Function() action, {
@@ -93,6 +95,9 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Background handler registration is performed by NotificationService
+    // during its initialization, so no direct reference is needed here.
 
     // 🔧 Connect to Firebase Emulators (for development)
     const useEmulators = false; // Disabled - using production Firebase
@@ -146,10 +151,12 @@ void main() async {
   /// 🔔 Notifications (optional)
   try {
     // Initialize notification service (permissions, channels)
-    await NotificationService().initialize();
-    // Set up listeners for FCM token changes based on auth state
-    NotificationService().setupTokenListeners();
-  } catch (_) {}
+    await notification_service.NotificationService().initialize();
+    // Set up listeners for FCM token changes based on auth state.
+    notification_service.NotificationService().setupTokenListeners();
+  } catch (e) {
+    debugPrint('❌ Notification Service failed: $e');
+  }
 
   final localeController = LocaleController();
   final themeController = ThemeController();
@@ -237,7 +244,13 @@ class LetsPlayApp extends StatelessWidget {
           case '/':
           case '/home':
             return MaterialPageRoute(
-              builder: (_) => MainLayout(ctrl: localeCtrl),
+              builder: (context) {
+                // Trigger update check once after navigation to home
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  UpdateService.instance.checkForUpdates(context);
+                });
+                return MainLayout(ctrl: localeCtrl);
+              },
             );
           case '/academy':
             return MaterialPageRoute(
@@ -301,7 +314,11 @@ class LetsPlayApp extends StatelessWidget {
             );
           case '/profile':
             final user = FirebaseAuth.instance.currentUser;
-            if (user == null) {
+            // Allow viewing other users via arguments, fallback to current user
+            final args = settings.arguments;
+            final String? targetUid = (args is String) ? args : user?.uid;
+
+            if (targetUid == null) {
               return MaterialPageRoute(
                 builder: (_) => LoginScreen(ctrl: localeCtrl),
               );
@@ -311,7 +328,7 @@ class LetsPlayApp extends StatelessWidget {
               builder: (context) {
                 // This `context` has access to the root providers.
                 return FutureBuilder<Map<String, dynamic>>(
-                  future: loadProfileSafe(context, user.uid),
+                  future: loadProfileSafe(context, targetUid),
                   builder: (futureBuilderContext, snap) {
                     if (!snap.hasData) {
                       return const Scaffold(
@@ -333,8 +350,15 @@ class LetsPlayApp extends StatelessWidget {
             final args = settings.arguments as Map<String, dynamic>?;
             final userId = args?['userId'] as String?;
             return MaterialPageRoute(
-              builder: (_) =>
-                  ProfileDetailsScreen(ctrl: localeCtrl, userId: userId),
+              builder: (context) {
+                if (userId != null) {
+                  // Ensure FUT attributes are loaded for the card to render reactively
+                  context.read<PlayerAttributesStore>().loadPlayerAttributes(
+                    userId,
+                  );
+                }
+                return ProfileDetailsScreen(ctrl: localeCtrl, userId: userId);
+              },
             );
           case '/settings':
             return MaterialPageRoute(
@@ -405,6 +429,11 @@ class LetsPlayApp extends StatelessWidget {
             return MaterialPageRoute(
               builder: (_) => EditMatchPage(ctrl: localeCtrl, match: args),
             );
+          case '/admin/updates':
+            // Add admin protection logic here if needed
+            return MaterialPageRoute(
+              builder: (_) => const UpdateManagementPage(),
+            );
         }
         return null;
       },
@@ -422,6 +451,14 @@ Future<Map<String, dynamic>> loadProfileSafe(
     debugPrint('📥 Loading profile for user: $userId');
 
     final firebaseService = context.read<FirebaseService>();
+
+    // 🔥 Trigger loading of FUT attributes into the store for the card
+    try {
+      final attributesStore = context.read<PlayerAttributesStore>();
+      unawaited(attributesStore.loadPlayerAttributes(userId));
+    } catch (e) {
+      debugPrint('⚠️ Background attribute load skipped: $e');
+    }
 
     // Try to ensure user has fields (non-critical)
     try {
@@ -481,6 +518,7 @@ Future<Map<String, dynamic>> loadProfileSafe(
             : [],
         yellowCards: FirebaseService.safeInt(data['yellowCards']),
         redCards: FirebaseService.safeInt(data['redCards']),
+        notes: data['notes'] ?? '',
       ),
       'role': role,
     };
@@ -521,4 +559,5 @@ Player _defaultPlayer() => Player(
   badges: [],
   yellowCards: 0,
   redCards: 0,
+  notes: '',
 );

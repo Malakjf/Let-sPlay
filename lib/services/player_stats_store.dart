@@ -31,8 +31,10 @@ class PlayerStatsStore extends ChangeNotifier {
   static const String statAssists = 'assists';
   static const String statRed = 'redCards';
   static const String statYellow = 'yellowCards';
+  static const String statRedCards = statRed;
+  static const String statYellowCards = statYellow;
   static const String statMotm = 'motm';
-  static const String statMatches = 'matches';
+  static const String statMatches = 'matchesPlayed';
   static const String statXP = 'xp';
   static const String statLevel = 'level';
 
@@ -62,13 +64,15 @@ class PlayerStatsStore extends ChangeNotifier {
     try {
       debugPrint('📊 PlayerStatsStore: Initializing for match $matchId');
 
-      // Cleanup previous match data to prevent leaks/collisions
-      _stats.clear();
-      final matchSubKeys = _subscriptions.keys.where((k) => k.startsWith('match_')).toList();
-      for (final key in matchSubKeys) {
-        await _subscriptions[key]?.cancel();
-        _subscriptions.remove(key);
-      }
+      // ✅ Safely cleanup match-specific subscriptions ONLY
+      // Don't clear _stats entirely as it might hold career stats for active profile views
+      _subscriptions.removeWhere((key, sub) {
+        if (key.startsWith('match_')) {
+          sub.cancel();
+          return true;
+        }
+        return false;
+      });
 
       // Fetch match data
       final matchDoc = await _firestore
@@ -263,7 +267,11 @@ class PlayerStatsStore extends ChangeNotifier {
 
   /// Get single stat value
   num getStat(String playerId, String statType) {
-    return _stats[playerId]?[statType] ?? 0;
+    final val = _stats[playerId]?[statType];
+    if (val != null) return val;
+
+    // Default level should be 1, others 0
+    return (statType == statLevel) ? 1 : 0;
   }
 
   /// Get all stats for a player
@@ -381,7 +389,11 @@ class PlayerStatsStore extends ChangeNotifier {
   /// Now uses a stream for real-time updates
   Future<void> loadCareerStats(String playerId) async {
     final subKey = 'user_$playerId';
-    if (_subscriptions.containsKey(subKey)) return;
+    if (_subscriptions.containsKey(subKey)) {
+      // Ensure player entry exists in map even if subscription is already active
+      if (!_stats.containsKey(playerId)) _stats[playerId] = {};
+      return;
+    }
 
     debugPrint('🔌 Subscribing to career stats for $playerId');
     _subscriptions[subKey] = _firestore

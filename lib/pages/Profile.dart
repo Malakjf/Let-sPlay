@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:letsplay/utils/permissions.dart';
@@ -5,30 +7,137 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user_permission.dart' show UserPermission;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/language.dart';
 import '../services/guest_service.dart';
 import '../models/player.dart';
 import '../widgets/FutCardFull.dart';
 import '../widgets/FutCardResponsive.dart';
-import '../widgets/AnimatedButton.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:letsplay/services/player_attributes_store.dart';
-import '../services/firebase_service.dart';
 import '../widgets/LogoButton.dart' show LogoButton;
 import '../widgets/PlayerMatchStatsStrip.dart';
 import 'package:letsplay/services/player_stats_store.dart';
+import 'package:letsplay/pages/performance_rating_page.dart';
 import 'package:letsplay/services/player_metrics_store.dart';
+import '../widgets/AvatarUploadDialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   final LocaleController ctrl;
   final Player player;
   final UserPermission userPermission;
+  final bool isPopup;
 
   const ProfileScreen({
     super.key,
     required this.ctrl,
     required this.player,
     this.userPermission = UserPermission.coach,
+    this.isPopup = false,
   });
+
+  /// Reusable method to open a player's profile from anywhere in the app.
+  static void show(
+    BuildContext context, {
+    required LocaleController ctrl,
+    required Player player,
+    required UserPermission viewerPermission,
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileScreen(
+          ctrl: ctrl,
+          player: player,
+          userPermission: viewerPermission,
+        ),
+      ),
+    );
+  }
+
+  /// Opens the exact same profile layout as a premium modal popup.
+  /// Used for "View Profile" actions in Users Management and Performance Rating.
+  static void showPlayerProfilePopup(
+    BuildContext context, {
+    required LocaleController ctrl,
+    required Player player,
+    required UserPermission viewerPermission,
+  }) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.85),
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0A0E27),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: ProfileScreen(
+              ctrl: ctrl,
+              player: player,
+              userPermission: viewerPermission,
+              isPopup: true,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Opens a player profile from dynamic data maps (User Management / Match Lists).
+  static void showFromMap(
+    BuildContext context, {
+    required LocaleController ctrl,
+    required Map<String, dynamic> data,
+    required UserPermission viewerPermission,
+    bool asPopup = false,
+  }) {
+    final p = Player(
+      id: data['uid'] ?? data['id'] ?? '',
+      name: data['name'] ?? data['username'] ?? 'Player',
+      position: data['position'] ?? 'ST',
+      imageUrl: data['avatarUrl'] ?? data['imageUrl'] ?? '',
+      goals: 0,
+      assists: 0,
+      motm: 0,
+      matches: 0,
+      level: 1,
+      metrics: {},
+      countryFlagUrl: '',
+      club: '',
+      nationality: '',
+      rating: 0,
+      badges: [],
+      yellowCards: 0,
+      redCards: 0,
+      notes: '',
+    );
+
+    if (asPopup) {
+      showPlayerProfilePopup(
+        context,
+        ctrl: ctrl,
+        player: p,
+        viewerPermission: viewerPermission,
+      );
+    } else {
+      show(context, ctrl: ctrl, player: p, viewerPermission: viewerPermission);
+    }
+  }
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -36,11 +145,153 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final ScrollController _scrollController = ScrollController();
+  bool _isUploading = false;
+  String? _optimisticAvatarUrl;
+
+  // Prevent showing fallback/stale defaults (LV=1, 0s) before Firebase career stats arrive.
+  // We consider stats "ready" only when the store has a real entry for the user.
+
+  // 🚀 Level Up Logic
+  int? _lastSeenLevel;
+  int? _lastLevelUpTimestampMillis;
+  bool _isPlayingCelebration = false;
+  int _prevLevel = 0;
+  int _currLevel = 0;
+  Widget _buildActionButton(
+    BuildContext context,
+    String title,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: onTap,
+        icon: Icon(icon, color: const Color(0xFF38BDF8)),
+        label: Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF38BDF8),
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1E293B),
+          foregroundColor: const Color(0xFF38BDF8),
+          elevation: 0,
+          minimumSize: const Size(double.infinity, 60),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: BorderSide(color: Colors.white.withOpacity(0.08)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton(BuildContext context, bool ar, ThemeData theme) {
+    return SizedBox(
+      width: 140,
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          await FirebaseAuth.instance.signOut();
+
+          if (!context.mounted) return;
+
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            '/login',
+            (route) => false,
+          );
+        },
+        icon: const Icon(Icons.logout),
+        label: Text(ar ? 'تسجيل الخروج' : 'Logout'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1E293B),
+          foregroundColor: Colors.redAccent,
+          minimumSize: const Size(140, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Initializes level tracking from SharedPreferences
+  Future<void> _initLevelTracking() async {
+    final prefs = await SharedPreferences.getInstance();
+    // Support legacy key `last_seen_level_{id}` but prefer new keys.
+    final shown =
+        prefs.getInt('lastLevelShown_${widget.player.id}') ??
+        prefs.getInt('last_seen_level_${widget.player.id}');
+    final ts = prefs.getInt('lastLevelUpTimestamp_${widget.player.id}');
+    if (mounted) {
+      setState(() {
+        _lastSeenLevel = shown;
+        _lastLevelUpTimestampMillis = ts;
+      });
+    }
+  }
+
+  /// Triggers the Level Up celebration sequence
+  void _triggerLevelUpCelebration(int oldLevel, int newLevel) {
+    if (_isPlayingCelebration) return;
+    setState(() {
+      _prevLevel = oldLevel;
+      _currLevel = newLevel;
+      _isPlayingCelebration = true;
+    });
+
+    // Auto-dismiss celebration after 4 seconds
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _isPlayingCelebration = false);
+    });
+  }
+
+  /// Handles the avatar update process with cache eviction and optimistic UI
+  Future<void> _updateAvatar(
+    BuildContext context,
+    String userId,
+    String? currentUrl,
+  ) async {
+    final ar = widget.ctrl.isArabic;
+
+    final String? newUrl = await showAvatarUploadDialog(
+      context: context,
+      userId: userId,
+      currentAvatarUrl: currentUrl,
+    );
+
+    if (newUrl != null && mounted) {
+      setState(() {
+        _isUploading = true;
+        _optimisticAvatarUrl = newUrl;
+      });
+
+      // Give Firestore a moment to sync and the UI to breathe
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      if (mounted) {
+        setState(() => _isUploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              ar ? 'تم تحديث الصورة بنجاح' : 'Profile picture updated!',
+            ),
+          ),
+        );
+      }
+    }
   }
 
   /// Scrolls the profile page to the top.
@@ -59,26 +310,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     final userId = widget.player.id;
-
-    // ✅ Subscription Safety: Subscribe once per session/entry
+    // Perform async setup after the first frame so Provider context is available.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
-      Provider.of<PlayerAttributesStore>(
-        context,
-        listen: false,
-      ).subscribeToPlayer(userId);
-
-      Provider.of<PlayerMetricsStore>(
-        context,
-        listen: false,
-      ).subscribeToUser(userId);
-
-      Provider.of<PlayerStatsStore>(
-        context,
-        listen: false,
-      ).loadCareerStats(userId);
+      _postInit(userId);
     });
+  }
+
+  Future<void> _postInit(String userId) async {
+    // Initialize persisted level tracking first
+    await _initLevelTracking();
+
+    // Subscribe to stores
+    Provider.of<PlayerAttributesStore>(
+      context,
+      listen: false,
+    ).subscribeToPlayer(userId);
+
+    Provider.of<PlayerMetricsStore>(
+      context,
+      listen: false,
+    ).subscribeToUser(userId);
+
+    // Ensure career stats are loaded before checking level
+    final statsStore = Provider.of<PlayerStatsStore>(context, listen: false);
+    await statsStore.loadCareerStats(userId);
+
+    // After loading stats and initializing prefs, check level up status
+    await _checkLevelUpStatus();
+  }
+
+  /// Checks persisted level state vs current level and triggers/replays celebration.
+  Future<void> _checkLevelUpStatus() async {
+    final userId = widget.player.id;
+
+    final prefs = await SharedPreferences.getInstance();
+
+    // Read current level from PlayerStatsStore
+    final statsStore = Provider.of<PlayerStatsStore>(context, listen: false);
+    final level = statsStore
+        .getStat(userId, PlayerStatsStore.statLevel)
+        .toInt();
+
+    print('Current Level: $level');
+    print('Last Seen Level: $_lastSeenLevel');
+    print('Last Timestamp: $_lastLevelUpTimestampMillis');
+
+    // If we have no record yet, initialize persisted value without triggering
+    if (_lastSeenLevel == null) {
+      _lastSeenLevel = level;
+      await prefs.setInt('lastLevelShown_$userId', level);
+      return;
+    }
+
+    // If level increased -> persist and trigger celebration once
+    if (level > _lastSeenLevel!) {
+      final nowMillis = DateTime.now().millisecondsSinceEpoch;
+      _lastLevelUpTimestampMillis = nowMillis;
+      _lastSeenLevel = level;
+      await prefs.setInt('lastLevelShown_$userId', level);
+      await prefs.setInt('lastLevelUpTimestamp_$userId', nowMillis);
+      print('Level Up Triggered');
+      if (!_isPlayingCelebration) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _triggerLevelUpCelebration(level - 1, level);
+        });
+      }
+      return;
+    }
+
+    // If same level, replay if within 24 hours
+    if (level == _lastSeenLevel) {
+      final ts =
+          _lastLevelUpTimestampMillis ??
+          prefs.getInt('lastLevelUpTimestamp_$userId');
+      print('Checked timestamp (prefs or memory): $ts');
+      if (ts != null) {
+        final nowMillis = DateTime.now().millisecondsSinceEpoch;
+        const dayMs = 24 * 60 * 60 * 1000;
+        final elapsed = nowMillis - ts;
+        if (elapsed <= dayMs) {
+          print('Replaying Level Up (within 24h)');
+          if (!_isPlayingCelebration) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted)
+                // ignore: curly_braces_in_flow_control_structures
+                _triggerLevelUpCelebration(
+                  (level > 0) ? level - 1 : level,
+                  level,
+                );
+            });
+          }
+        }
+      }
+    }
   }
 
   @override
@@ -97,157 +422,321 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .doc(userId)
               .snapshots(),
           builder: (context, snapshot) {
-            // Handle error state - show friendly error instead of infinite loading
-            if (snapshot.hasError) {
-              final errorString = snapshot.error.toString();
-              final isPermissionDenied =
-                  errorString.contains('permission-denied') ||
-                  errorString.contains('PERMISSION_DENIED');
+            // Check for permission denied errors specifically for guest/unauthorized access
+            final errorString = snapshot.error?.toString() ?? '';
+            final isPermissionDenied =
+                errorString.contains('permission-denied') ||
+                errorString.contains('PERMISSION_DENIED');
 
-              // For permission denied (guest), show limited profile with login prompt
-              if (isPermissionDenied) {
-                return _buildLimitedProfile(context, ar, theme, userId);
-              }
-
-              // For other errors, show error message
-              return _buildErrorState(context, ar, theme, errorString);
+            if (isPermissionDenied) {
+              return _buildLimitedProfile(context, ar, theme, userId);
             }
 
-            // Handle loading state
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildLoadingState(ar, theme);
-            }
+            // We don't return early for snapshot.hasError or connectionState.waiting anymore.
+            // Instead, we use widget.player as the immediate source of truth,
+            // and snapshot.data as the reactive source of truth.
+            final rawData = snapshot.data?.data();
+            final Map<String, dynamic> data = rawData == null
+                ? <String, dynamic>{}
+                : Map<String, dynamic>.from(rawData as Map);
 
-            // Handle no data (empty)
-            if (!snapshot.hasData || snapshot.data == null) {
-              return _buildEmptyState(context, ar, theme, userId);
-            }
-
-            final data = snapshot.data!.data();
-
-            final name =
-                data?['name'] ?? data?['username'] ?? widget.player.name;
-            final position = data?['position'] ?? widget.player.position;
-            final avatarUrl = data?['avatarUrl'] ?? widget.player.imageUrl;
+            final name = data['name'] ?? data['username'] ?? widget.player.name;
+            final position = data['position'] ?? widget.player.position;
+            final avatarUrl = data['avatarUrl'] ?? widget.player.imageUrl;
             final countryFlagUrl =
-                data?['countryFlagUrl'] ?? widget.player.countryFlagUrl;
-            final role = data?['role'] ?? 'Player';
-            final permissionLevel = data?['permissionLevel'] as String?;
+                data['countryFlagUrl'] ?? widget.player.countryFlagUrl;
+            final role = data['role'] ?? widget.player.notes ?? 'Player';
+            final permissionLevel = data['permissionLevel'] as String?;
             final currentPermission = permissionFromRole(
               permissionLevel ?? role,
             );
-            final isGk = (position.toUpperCase() == 'GK');
-            final level = data?['level'] ?? widget.player.level;
-            final double xp = (data?['xp'] as num?)?.toDouble() ?? 0.0;
-            final isAcademy = data?['isAcademyPlayer'] == true;
+            final isGk = (position.toString().toUpperCase() == 'GK');
+            final isOwnProfile =
+                FirebaseAuth.instance.currentUser?.uid == userId;
+
+            // 🎯 Use PlayerStatsStore as the single source of truth for stats and level
+            // This ensures values match the "View Profile" popup exactly.
+            final level = statsStore
+                .getStat(userId, PlayerStatsStore.statLevel)
+                .toInt();
+            final double xp = statsStore
+                .getStat(userId, PlayerStatsStore.statXP)
+                .toDouble();
+
+            final isAcademy = data['isAcademyPlayer'] == true;
+
+            // Level-up handling moved to init flow: use _checkLevelUpStatus()
+
+            bool isValidUrl(String? url) {
+              if (url == null || url.isEmpty) return false;
+              return url.startsWith('http://') || url.startsWith('https://');
+            }
+
+            // دالة كسر الكاش: تجبر المتصفح/التطبيق على تحميل الصورة الجديدة عند تغير updatedAt
+            String bust(String url) {
+              if (url.isEmpty || !url.startsWith('http')) return url;
+              final dynamic updatedAt =
+                  data['updatedAt'] ?? data['updated_at'] ?? '1';
+              // معالجة الوقت ليكون أرقاماً فقط لضمان سلامة الرابط
+              final version = updatedAt is Timestamp
+                  ? updatedAt.millisecondsSinceEpoch
+                  : updatedAt.toString().replaceAll(RegExp(r'[^0-9]'), '');
+              return '$url${url.contains('?') ? '&' : '?'}v=$version';
+            }
 
             return Directionality(
               textDirection: ar ? TextDirection.rtl : TextDirection.ltr,
               child: Scaffold(
-                backgroundColor: theme.scaffoldBackgroundColor,
+                backgroundColor: widget.isPopup
+                    ? Colors.transparent
+                    : theme.scaffoldBackgroundColor,
                 body: SafeArea(
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    key: PageStorageKey('profile_scroll_$userId'),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 24,
-                      horizontal: 16,
-                    ),
-                    child: Column(
-                      children: [
-                        // Header with LogoButton
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Center(
-                                child: Text(
-                                  _getProfileTitle(
+                  top: !widget.isPopup,
+                  child: Stack(
+                    children: [
+                      SingleChildScrollView(
+                        controller: _scrollController,
+                        key: PageStorageKey('profile_scroll_$userId'),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 24,
+                          horizontal: 16,
+                        ),
+                        child: Column(
+                          children: [
+                            // Header with LogoButton
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  Center(
+                                    child: Text(
+                                      _getProfileTitle(
+                                        ar,
+                                        currentPermission,
+                                        isAcademy,
+                                      ),
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontSize: 22,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                    ),
+                                  ),
+                                  if (widget.isPopup)
+                                    Positioned(
+                                      left: ar ? 0 : null,
+                                      right: ar ? null : 0,
+                                      child: IconButton(
+                                        icon: const Icon(
+                                          Icons.close,
+                                          color: Colors.white70,
+                                        ),
+                                        onPressed: () => Navigator.pop(context),
+                                      ),
+                                    ),
+                                  const Positioned(
+                                    right: 0,
+                                    child: LogoButton(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+
+                            // FUT Card
+                            Center(
+                              child: Stack(
+                                children: [
+                                  GestureDetector(
+                                    onTap: isOwnProfile && !_isUploading
+                                        ? () => _updateAvatar(
+                                            context,
+                                            userId,
+                                            avatarUrl,
+                                          )
+                                        : null,
+                                    child: MouseRegion(
+                                      cursor: isOwnProfile
+                                          ? SystemMouseCursors.click
+                                          : SystemMouseCursors.basic,
+                                      child: FutCardResponsive(
+                                        child: FutCardFull(
+                                          playerId: userId,
+                                          playerName: name,
+                                          position: position,
+                                          rating: level,
+                                          countryIcon:
+                                              isValidUrl(countryFlagUrl)
+                                              ? bust(countryFlagUrl)
+                                              : 'https://flagcdn.com/w320/jo.png',
+                                          avatarUrl:
+                                              _optimisticAvatarUrl ??
+                                              (isValidUrl(avatarUrl)
+                                                  ? bust(avatarUrl)
+                                                  : ''),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_isUploading)
+                                    Positioned.fill(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.4),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                        ),
+                                        child: const Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      ),
+                                    ),
+                                  if (isOwnProfile && !_isUploading)
+                                    Positioned(
+                                      top: 10,
+                                      right: 10,
+                                      child: CircleAvatar(
+                                        backgroundColor:
+                                            theme.colorScheme.primary,
+                                        radius: 15,
+                                        child: const Icon(
+                                          Icons.edit,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Soft container for profile details (keeps FUT Card untouched)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.06),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // Level progress
+                                  _buildLevelProgress(context, ar, theme, xp),
+
+                                  const SizedBox(height: 18),
+
+                                  // Live Player Stats Strip
+                                  PlayerMatchStatsStrip(
+                                    playerId: userId,
+                                    isGk: isGk,
+                                    goals: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statGoals,
+                                        )
+                                        .toInt(),
+                                    assists: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statAssists,
+                                        )
+                                        .toInt(),
+                                    yellowCards: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statYellowCards,
+                                        )
+                                        .toInt(),
+                                    redCards: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statRedCards,
+                                        )
+                                        .toInt(),
+                                    motm: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statMotm,
+                                        )
+                                        .toInt(),
+                                    matches: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statMatches,
+                                        )
+                                        .toInt(),
+                                    saves: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statSaves,
+                                        )
+                                        .toInt(),
+                                    cleanSheets: statsStore
+                                        .getStat(
+                                          userId,
+                                          PlayerStatsStore.statCleanSheet,
+                                        )
+                                        .toInt(),
+                                  ),
+
+                                  const SizedBox(height: 22),
+
+                                  // Coach evaluation removed
+                                  // Permission-specific action buttons
+                                  _buildPermissionBasedActions(
+                                    context,
                                     ar,
-                                    currentPermission,
-                                    isAcademy,
+                                    theme,
+                                    widget
+                                        .userPermission, // Viewer's permission
+                                    isOwnProfile,
+                                    userId,
+                                    name,
                                   ),
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+
+                                  const SizedBox(height: 18),
+
+                                  // Social icons
+                                  _buildSocialIcons(context, theme),
+
+                                  const SizedBox(height: 16),
+
+                                  // Log out button
+                                  if (isOwnProfile)
+                                    _buildLogoutButton(context, ar, theme),
+                                ],
                               ),
-                              const Positioned(right: 0, child: LogoButton()),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      // ✨ Level Up Celebration Overlay
+                      if (_isPlayingCelebration)
+                        Positioned.fill(
+                          child: GestureDetector(
+                            onTap: () =>
+                                setState(() => _isPlayingCelebration = false),
+                            child: Container(
+                              color: Colors.black.withOpacity(0.8),
+                              child: _LevelUpCelebrationOverlay(
+                                oldLevel: _prevLevel,
+                                newLevel: _currLevel,
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 18),
-
-                        // FUT Card
-                        FutCardResponsive(
-                          child: FutCardFull(
-                            playerId: userId,
-                            playerName: name,
-                            position: position,
-                            rating: level,
-                            countryIcon: countryFlagUrl.isNotEmpty
-                                ? countryFlagUrl
-                                : 'https://flagcdn.com/w320/jo.png',
-                            avatarUrl: avatarUrl,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Soft container for profile details (keeps FUT Card untouched)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.06),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Level progress
-                              _buildLevelProgress(context, ar, theme, xp),
-
-                              const SizedBox(height: 18),
-
-                              // Live Player Stats Strip
-                              PlayerMatchStatsStrip(
-                                playerId: userId,
-                                isGk: isGk,
-                              ),
-
-                              const SizedBox(height: 22),
-
-                              // Permission-specific action buttons
-                              _buildPermissionBasedActions(
-                                context,
-                                ar,
-                                theme,
-                                currentPermission,
-                              ),
-
-                              const SizedBox(height: 18),
-
-                              // Social icons
-                              _buildSocialIcons(theme),
-
-                              const SizedBox(height: 16),
-
-                              // Log out button
-                              _buildLogoutButton(context, ar, theme),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+                    ],
                   ),
                 ),
               ),
@@ -352,7 +841,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildSocialIcons(ThemeData theme) {
+  Widget _buildSocialIcons(BuildContext context, ThemeData theme) {
     // Social links provided by user
     final instagram = Uri.parse(
       'https://www.instagram.com/letsplay_jo?igsh=Z295YjM2NTFqOXdu',
@@ -420,23 +909,120 @@ class _ProfileScreenState extends State<ProfileScreen> {
     BuildContext context,
     bool ar,
     ThemeData theme,
-    UserPermission permission,
+    UserPermission viewerPermission,
+    bool isOwnProfile,
+    String userId,
+    String name,
   ) {
-    switch (permission) {
+    // If viewing someone else's profile (from User Management or Match list)
+    if (!isOwnProfile) {
+      if (viewerPermission == UserPermission.admin ||
+          viewerPermission == UserPermission.coach ||
+          viewerPermission == UserPermission.organizer) {
+        return _buildStaffViewingPlayerActions(
+          context,
+          ar,
+          theme,
+          viewerPermission,
+          userId,
+          name,
+        );
+      }
+      return const SizedBox.shrink(); // Players viewing players - restricted view
+    }
+
+    // If viewing own profile
+    switch (viewerPermission) {
       case UserPermission.admin:
-        return _buildAdminActions(context, ar, theme);
+        return _buildAdminActions(
+          context,
+          ar,
+          theme,
+          currentPermission: viewerPermission,
+          userId: userId,
+          name: name,
+        );
       case UserPermission.organizer:
-        return _buildOrganizerActions(context, ar, theme);
+        return _buildOrganizerActions(
+          context,
+          ar,
+          theme,
+          currentPermission: viewerPermission,
+          userId: userId,
+          name: name,
+        );
       case UserPermission.coach:
-        return _buildCoachActions(context, ar, theme);
+        return _buildCoachActions(
+          context,
+          ar,
+          theme,
+          currentPermission: viewerPermission,
+          userId: userId,
+          name: name,
+        );
       case UserPermission.academy:
-        return _buildPlayerActions(context, ar, theme);
+        return _buildPlayerActions(
+          context,
+          ar,
+          theme,
+          currentPermission: viewerPermission,
+          userId: userId,
+          name: name,
+        );
       default:
-        return _buildPlayerActions(context, ar, theme);
+        return _buildPlayerActions(
+          context,
+          ar,
+          theme,
+          currentPermission: viewerPermission,
+          userId: userId,
+          name: name,
+        );
     }
   }
 
-  Widget _buildAdminActions(BuildContext context, bool ar, ThemeData theme) {
+  /// Specific actions available when Staff (Admin/Coach) views a player's profile.
+  Widget _buildStaffViewingPlayerActions(
+    BuildContext context,
+    bool ar,
+    ThemeData theme,
+    UserPermission viewerPermission,
+    String userId,
+    String name,
+  ) {
+    return Column(
+      children: [
+        _buildActionButton(
+          context,
+          ar ? 'تقييم الأداء' : 'Performance Rating',
+          Icons.bar_chart,
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PerformanceRatingPage(
+                  ctrl: widget.ctrl,
+                  playerId: userId,
+                  playerName: name,
+                  userPermission: viewerPermission,
+                  showOnlyCurrentUser: false,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAdminActions(
+    BuildContext context,
+    bool ar,
+    ThemeData theme, {
+    required UserPermission currentPermission,
+    required String userId,
+    required String name,
+  }) {
     return Column(
       children: [
         _buildActionButton(
@@ -466,6 +1052,53 @@ class _ProfileScreenState extends State<ProfileScreen> {
           () {
             if (!GuestService.handleGuestInteraction(context, ar)) return;
             Navigator.pushNamed(context, '/players');
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          context,
+          ar ? 'عرض أدائي' : 'View My Performance',
+          Icons.bar_chart,
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            final currentUser = FirebaseAuth.instance.currentUser;
+            final currentAuthUserId = currentUser?.uid ?? '';
+            final currentAuthUserName =
+                currentUser?.displayName ?? (ar ? 'أدائي' : 'My Performance');
+
+            // This button is for the logged-in user to view their own performance
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PerformanceRatingPage(
+                  ctrl: widget.ctrl,
+                  playerId: userId,
+                  playerName: name,
+                  userPermission: currentPermission,
+                  showOnlyCurrentUser: true,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          context,
+          ar ? 'تقييم الأداء' : 'Performance Rating',
+          Icons.bar_chart,
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            // This button is for staff to rate the viewed player
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PerformanceRatingPage(
+                  ctrl: widget.ctrl,
+                  playerId: widget.player.id,
+                  playerName: widget.player.name,
+                  userPermission: currentPermission,
+                  showOnlyCurrentUser: false,
+                ),
+              ),
+            );
           },
         ),
         const SizedBox(height: 12),
@@ -495,8 +1128,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildOrganizerActions(
     BuildContext context,
     bool ar,
-    ThemeData theme,
-  ) {
+    ThemeData theme, {
+    required UserPermission currentPermission,
+    required String userId,
+    required String name,
+  }) {
     return Column(
       children: [
         _buildActionButton(
@@ -521,6 +1157,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 12),
         _buildActionButton(
           context,
+          ar ? 'عرض أدائي' : 'View My Performance',
+          Icons.bar_chart,
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            final currentUser = FirebaseAuth.instance.currentUser;
+            final currentAuthUserId = currentUser?.uid ?? '';
+            final currentAuthUserName =
+                currentUser?.displayName ?? (ar ? 'أدائي' : 'My Performance');
+
+            // This button is for the logged-in user to view their own performance
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PerformanceRatingPage(
+                  ctrl: widget.ctrl,
+                  playerId: userId,
+                  playerName: name,
+                  userPermission: currentPermission,
+                  showOnlyCurrentUser: true,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          context,
           ar ? 'المنظمة' : 'Organization',
           Icons.business,
           () {
@@ -532,7 +1194,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildCoachActions(BuildContext context, bool ar, ThemeData theme) {
+  Widget _buildCoachActions(
+    BuildContext context,
+    bool ar,
+    ThemeData theme, {
+    required UserPermission currentPermission,
+    required String userId,
+    required String name,
+  }) {
     return Column(
       children: [
         _buildActionButton(
@@ -564,11 +1233,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Navigator.pushNamed(context, '/players');
           },
         ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          context,
+          ar ? 'عرض أدائي' : 'View My Performance',
+          Icons.bar_chart,
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PerformanceRatingPage(
+                  ctrl: widget.ctrl,
+                  playerId: userId,
+                  playerName: name,
+                  userPermission: currentPermission,
+                  showOnlyCurrentUser: true,
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          context,
+          ar ? 'تقييم الأداء' : 'Performance Rating',
+          Icons.bar_chart,
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PerformanceRatingPage(
+                  ctrl: widget.ctrl,
+                  playerId: widget.player.id,
+                  playerName: widget.player.name,
+                  userPermission: currentPermission,
+                  showOnlyCurrentUser: false,
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildPlayerActions(BuildContext context, bool ar, ThemeData theme) {
+  Widget _buildPlayerActions(
+    BuildContext context,
+    bool ar,
+    ThemeData theme, {
+    required UserPermission currentPermission,
+    required String userId,
+    required String name,
+  }) {
     return Column(
       children: [
         _buildActionButton(
@@ -590,187 +1306,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Navigator.pushNamed(context, '/settings');
           },
         ),
+        const SizedBox(height: 12),
+        _buildActionButton(
+          context,
+          ar ? 'عرض أدائي' : 'View My Performance',
+          Icons.bar_chart,
+          () {
+            if (!GuestService.handleGuestInteraction(context, ar)) return;
+            // For a player, userId and name are already their own details
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => PerformanceRatingPage(
+                  ctrl: widget.ctrl,
+                  playerId: userId,
+                  playerName: name,
+                  userPermission: currentPermission,
+                  showOnlyCurrentUser: true, // Show only their own performance
+                ),
+              ),
+            );
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildActionButton(
-    BuildContext context,
-    String text,
-    IconData icon,
-    VoidCallback onPressed,
-  ) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Theme.of(context).dividerColor.withOpacity(0.1),
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: Theme.of(context).colorScheme.primary, size: 22),
-            const SizedBox(width: 16),
-            Text(
-              text,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLogoutButton(BuildContext context, bool ar, ThemeData theme) {
-    return Center(
-      child: AnimatedButton(
-        onPressed: () async {
-          try {
-            final confirm = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: Text(ar ? 'تسجيل الخروج' : 'Logout'),
-                content: Text(
-                  ar
-                      ? 'هل أنت متأكد من تسجيل الخروج؟'
-                      : 'Are you sure you want to logout?',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    child: Text(ar ? 'إلغاء' : 'Cancel'),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: Text(ar ? 'تسجيل الخروج' : 'Logout'),
-                  ),
-                ],
-              ),
-            );
-            if (confirm == true) {
-              await FirebaseService.instance.signOut();
-              if (mounted) {
-                Navigator.of(
-                  context,
-                ).pushNamedAndRemoveUntil('/login', (route) => false);
-              }
-            }
-          } catch (e) {
-            debugPrint('❌ Logout error: $e');
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(ar ? 'فشل تسجيل الخروج' : 'Logout failed'),
-                ),
-              );
-            }
-          }
-        },
-        text: ar ? 'تسجيل الخروج' : 'Logout',
-        icon: Icons.logout,
-      ),
-    );
-  }
-
-  // ===============================================================
-  // Helper methods for handling StreamBuilder states
-  // ===============================================================
-
-  /// Build loading state widget
-  Widget _buildLoadingState(bool ar, ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: theme.colorScheme.primary),
-          const SizedBox(height: 16),
-          Text(
-            ar ? 'جاري التحميل...' : 'Loading...',
-            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build error state widget with retry option
-  Widget _buildErrorState(
-    BuildContext context,
-    bool ar,
-    ThemeData theme,
-    String error,
-  ) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, color: theme.colorScheme.error, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              ar ? 'حدث خطأ' : 'Error occurred',
-              style: TextStyle(
-                color: theme.colorScheme.error,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              ar ? 'يرجى المحاولة مرة أخرى' : 'Please try again',
-              style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () {
-                // Trigger rebuild to retry
-                setState(() {});
-              },
-              child: Text(ar ? 'إعادة المحاولة' : 'Retry'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Build empty state widget
-  Widget _buildEmptyState(
-    BuildContext context,
-    bool ar,
-    ThemeData theme,
-    String userId,
-  ) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.person_outline,
-            color: theme.textTheme.bodyMedium?.color?.withOpacity(0.5),
-            size: 64,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            ar ? 'لا توجد بيانات' : 'No data available',
-            style: TextStyle(color: theme.textTheme.bodyMedium?.color),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Build limited profile for guest users (permission denied)
   Widget _buildLimitedProfile(
     BuildContext context,
     bool ar,
@@ -783,7 +1343,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: theme.scaffoldBackgroundColor,
         body: SafeArea(
           child: SingleChildScrollView(
-            controller: _scrollController,
             key: PageStorageKey('profile_scroll_$userId'),
             padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
             child: Column(
@@ -867,6 +1426,149 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ✨ EA FC Style Level Up Celebration Overlay
+class _LevelUpCelebrationOverlay extends StatefulWidget {
+  final int oldLevel;
+  final int newLevel;
+
+  const _LevelUpCelebrationOverlay({
+    required this.oldLevel,
+    required this.newLevel,
+  });
+
+  @override
+  State<_LevelUpCelebrationOverlay> createState() =>
+      __LevelUpCelebrationOverlayState();
+}
+
+class __LevelUpCelebrationOverlayState extends State<_LevelUpCelebrationOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    );
+
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: CurveTween(curve: Curves.elasticOut),
+        weight: 40,
+      ),
+      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 60),
+    ]).animate(_controller);
+
+    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.2)),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: FadeTransition(
+        opacity: _opacity,
+        child: ScaleTransition(
+          scale: _scale,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'LEVEL UP!',
+                style: GoogleFonts.saira(
+                  fontSize: 48,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFFFFD700),
+                  fontStyle: FontStyle.italic,
+                  letterSpacing: 4,
+                  shadows: [
+                    const Shadow(color: Colors.black, blurRadius: 10),
+                    Shadow(
+                      color: const Color(0xFFFFD700).withOpacity(0.5),
+                      blurRadius: 20,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 30),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 24,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A0E27),
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(color: const Color(0xFFFFD700), width: 3),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFD700).withOpacity(0.3),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'LV. ${widget.oldLevel}',
+                      style: GoogleFonts.saira(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white54,
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 20),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Color(0xFFFFD700),
+                        size: 32,
+                      ),
+                    ),
+                    Text(
+                      'LV. ${widget.newLevel}',
+                      style: GoogleFonts.saira(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+              Text(
+                'TAP TO CONTINUE',
+                style: GoogleFonts.saira(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white38,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
           ),
         ),
       ),

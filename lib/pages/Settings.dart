@@ -9,10 +9,12 @@ import '../widgets/permission_widgets.dart';
 import '../models/role_request.dart';
 import '../services/firebase_service.dart';
 import 'FAQPage.dart';
+// ignore: unused_import
 import 'PrivacyPolicyPage.dart';
 import 'TermsConditionsPage.dart';
 import 'RulesBookPage.dart';
 import '../services/account_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
   final LocaleController ctrl;
@@ -31,10 +33,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Get screen size for responsive design
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
-    
+
     // Calculate responsive values
     final horizontalPadding = screenWidth * 0.05;
-    
+
     return ListenableBuilder(
       listenable: widget.ctrl,
       builder: (context, child) {
@@ -86,7 +88,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       (value) => setState(() => _appUpdatesEnabled = value),
                     ),
                     Divider(color: theme.dividerColor, height: 1),
-                    _buildSectionTitle(context, ar ? 'الأذونات' : 'PERMISSIONS'),
+                    _buildSectionTitle(
+                      context,
+                      ar ? 'الأذونات' : 'PERMISSIONS',
+                    ),
                     const PermissionsSection(),
                     Divider(color: theme.dividerColor, height: 1),
                     _buildSectionTitle(context, ar ? 'الدعم' : 'SUPPORT'),
@@ -105,11 +110,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _buildSettingsTile(
                       context: context,
                       title: ar ? 'سياسة الخصوصية' : 'Privacy Policy',
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PrivacyPolicyPage(ctrl: widget.ctrl),
-                        ),
-                      ),
+                      onTap: () async {
+                        const url =
+                            'https://well-iodine-cd0.notion.site/Privacy-Policy-2ff1df1c4713802f9c7dcf36453a4b17';
+                        try {
+                          await launchUrl(
+                            Uri.parse(url),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                ar ? 'تعذر فتح الرابط' : 'Could not open link',
+                              ),
+                              backgroundColor: Theme.of(
+                                context,
+                              ).colorScheme.error,
+                            ),
+                          );
+                        }
+                      },
                       ar: ar,
                     ),
                     _buildSettingsTile(
@@ -117,7 +139,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       title: ar ? 'الشروط والأحكام' : 'Terms & Conditions',
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
-                          builder: (_) => TermsConditionsPage(ctrl: widget.ctrl),
+                          builder: (_) =>
+                              TermsConditionsPage(ctrl: widget.ctrl),
                         ),
                       ),
                       ar: ar,
@@ -160,10 +183,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context: context,
                       title: ar ? 'تسجيل الخروج' : 'Logout',
                       onTap: () {
-                        Navigator.of(context).pushNamedAndRemoveUntil(
-                          '/login',
-                          (route) => false,
-                        );
+                        Navigator.of(
+                          context,
+                        ).pushNamedAndRemoveUntil('/login', (route) => false);
                       },
                       ar: ar,
                       isDestructive: true,
@@ -446,4 +468,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 }
-

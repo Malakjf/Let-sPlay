@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:letsplay/widgets/LogoButton.dart';
 import 'package:letsplay/services/language.dart';
+import '../utils/image_helper.dart';
 
 class PlayersAcademyScreen extends StatelessWidget {
   final LocaleController ctrl;
@@ -70,7 +72,13 @@ class PlayersAcademyScreen extends StatelessWidget {
                           (avatar.isNotEmpty &&
                               (avatar.startsWith('http') ||
                                   avatar.startsWith('https')))
-                          ? NetworkImage(avatar) as ImageProvider
+                          ? CachedNetworkImageProvider(
+                              ImageHelper.refreshImageUrl(
+                                avatar,
+                              ), // Use refreshImageUrl
+                              cacheKey:
+                                  '${avatar}_${DateTime.now().millisecondsSinceEpoch}', // Unique cacheKey
+                            )
                           : null,
                       child: (avatar.isEmpty) ? Text(initials) : null,
                     ),
@@ -131,7 +139,11 @@ class PlayersAcademyScreen extends StatelessWidget {
                             (avatar.isNotEmpty &&
                                 (avatar.startsWith('http') ||
                                     avatar.startsWith('https')))
-                            ? NetworkImage(avatar) as ImageProvider
+                            ? CachedNetworkImageProvider(
+                                ImageHelper.refreshImageUrl(avatar),
+                                cacheKey:
+                                    '${avatar}_${DateTime.now().millisecondsSinceEpoch}',
+                              )
                             : null,
                         child: (avatar.isEmpty) ? Text(initials) : null,
                       ),

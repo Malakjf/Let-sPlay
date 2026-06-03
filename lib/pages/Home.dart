@@ -5,7 +5,9 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math' as math;
+import 'package:cached_network_image/cached_network_image.dart';
 
+import '../models/player.dart';
 import '../services/language.dart';
 import '../services/matches_service.dart';
 import '../services/firebase_service.dart';
@@ -17,6 +19,7 @@ import '../widgets/logobutton.dart' show LogoButton;
 
 import '../utils/permissions.dart';
 import '../models/user_permission.dart';
+import 'profile.dart' as profile;
 
 class HomeScreen extends StatefulWidget {
   final LocaleController ctrl;
@@ -47,7 +50,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // 🚀 Check for app updates
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      UpdateService.checkForUpdate(context);
+      // call instance method instead of static access
+      UpdateService.instance.checkForUpdates(context);
+      _loadAnnouncements();
     });
   }
 
@@ -79,14 +84,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// Checks if a match ended more than 7 days ago
-  bool _isMatchExpired(Map<String, dynamic> match) {
+  /// Checks if a match has ended (now >= match end time)
+  bool _isMatchEnded(Map<String, dynamic> match) {
     final matchEnd = _getMatchEndTime(match);
-    // If parsing failed or date is missing, don't expire it by default
+    // If parsing failed or date is missing, consider it not ended
     if (matchEnd.millisecondsSinceEpoch == 0) return false;
 
     final now = DateTime.now();
-    // Hide if currentDate > endDate + 7 days
-    return now.isAfter(matchEnd.add(const Duration(days: 7)));
+    // Consider ended if current time is at or after the match end
+    return now.isAtSameMomentAs(matchEnd) || now.isAfter(matchEnd);
   }
 
   String _computeMatchStatus(Map<String, dynamic> match) {
@@ -271,6 +277,100 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Fetches active academy announcements and validates current date range
+  Future<void> _loadAnnouncements() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('academy_announcements')
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      if (snapshot.docs.isEmpty) return;
+
+      final now = DateTime.now();
+
+      final validAnnouncements = snapshot.docs.where((doc) {
+        final data = doc.data();
+
+        // Ensure all required fields exist
+        if (data['startDate'] == null ||
+            data['endDate'] == null ||
+            data['imageUrl'] == null) {
+          return false;
+        }
+
+        final start = (data['startDate'] as Timestamp).toDate();
+        final end = (data['endDate'] as Timestamp).toDate();
+
+        // Critical Date Fix: Include same moment as start/end
+        return (now.isAtSameMomentAs(start) || now.isAfter(start)) &&
+            (now.isAtSameMomentAs(end) || now.isBefore(end));
+      }).toList();
+
+      if (validAnnouncements.isNotEmpty) {
+        _showAnnouncementPopup(validAnnouncements.first.data());
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading announcements: $e');
+    }
+  }
+
+  /// Displays the announcement in a modern popup dialog
+  void _showAnnouncementPopup(Map<String, dynamic> announcement) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF081225),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: CachedNetworkImage(
+                    imageUrl: announcement['imageUrl'],
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  announcement['title'] ?? '',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 20,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  announcement['description'] ?? '',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // Get screen size for responsive design
@@ -310,12 +410,12 @@ class _HomeScreenState extends State<HomeScreen> {
           }).toList();
         }
 
-        // Automatically hide matches that ended more than 7 days ago
-        allMatches = allMatches.where((m) => !_isMatchExpired(m)).toList();
+        // Automatically hide matches that have ended
+        allMatches = allMatches.where((m) => !_isMatchEnded(m)).toList();
 
-        // Filter joined matches using the same expiry logic for consistency
+        // Filter joined matches using the same ended logic for consistency
         final visibleJoinedMatches = _allJoinedMatches
-            .where((m) => !_isMatchExpired(m))
+            .where((m) => !_isMatchEnded(m))
             .toList();
 
         // Find the joined match (next match)
@@ -348,48 +448,88 @@ class _HomeScreenState extends State<HomeScreen> {
                             Flexible(
                               child: Row(
                                 children: [
-                                  CircleAvatar(
-                                    radius: avatarRadius,
-                                    backgroundColor: theme.colorScheme.primary
-                                        .withOpacity(0.2),
-                                    backgroundImage:
-                                        _profilePicUrl != null &&
-                                            _profilePicUrl!.isNotEmpty
-                                        ? NetworkImage(
-                                            _profilePicUrl!.contains('?')
-                                                ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
-                                                : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
-                                          )
-                                        : null,
-                                    onBackgroundImageError:
-                                        _profilePicUrl != null &&
-                                            _profilePicUrl!.isNotEmpty
-                                        ? (exception, stackTrace) {
-                                            debugPrint(
-                                              '❌ Avatar load error: $exception',
-                                            );
-                                          }
-                                        : null, // Set to null when backgroundImage is null
-                                    child:
-                                        _profilePicUrl == null ||
-                                            _profilePicUrl!.isEmpty
-                                        ? Text(
-                                            _username.isNotEmpty
-                                                ? _username
-                                                      .substring(0, 1)
-                                                      .toUpperCase()
-                                                : 'U',
-                                            style: TextStyle(
-                                              color: theme.colorScheme.primary,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize:
-                                                  MediaQuery.textScaleFactorOf(
-                                                    context,
-                                                  ) *
-                                                  16,
-                                            ),
-                                          )
-                                        : const SizedBox.shrink(),
+                                  GestureDetector(
+                                    onTap: () {
+                                      if (!GuestService.handleGuestInteraction(
+                                        context,
+                                        ar,
+                                      )) {
+                                        return;
+                                      }
+                                      final user =
+                                          FirebaseAuth.instance.currentUser;
+                                      if (user != null) {
+                                        profile.ProfileScreen.show(
+                                          context,
+                                          ctrl: widget.ctrl,
+                                          player: Player(
+                                            id: user.uid,
+                                            name: _username,
+                                            imageUrl: _profilePicUrl ?? '',
+                                            goals: 0,
+                                            assists: 0,
+                                            motm: 0,
+                                            matches: 0,
+                                            level: 1,
+                                            metrics: {},
+                                            countryFlagUrl: '',
+                                            position: '',
+                                            club: '',
+                                            nationality: '',
+                                            rating: 0,
+                                            badges: [],
+                                            yellowCards: 0,
+                                            redCards: 0,
+                                            notes: '',
+                                          ),
+                                          viewerPermission: _userPermission,
+                                        );
+                                      }
+                                    },
+                                    child: CircleAvatar(
+                                      radius: avatarRadius,
+                                      backgroundColor: theme.colorScheme.primary
+                                          .withOpacity(0.2),
+                                      backgroundImage:
+                                          _profilePicUrl != null &&
+                                              _profilePicUrl!.isNotEmpty
+                                          ? NetworkImage(
+                                              _profilePicUrl!.contains('?')
+                                                  ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
+                                                  : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
+                                            )
+                                          : null,
+                                      onBackgroundImageError:
+                                          _profilePicUrl != null &&
+                                              _profilePicUrl!.isNotEmpty
+                                          ? (exception, stackTrace) {
+                                              debugPrint(
+                                                '❌ Avatar load error: $exception',
+                                              );
+                                            }
+                                          : null,
+                                      child:
+                                          _profilePicUrl == null ||
+                                              _profilePicUrl!.isEmpty
+                                          ? Text(
+                                              _username.isNotEmpty
+                                                  ? _username
+                                                        .substring(0, 1)
+                                                        .toUpperCase()
+                                                  : 'U',
+                                              style: TextStyle(
+                                                color:
+                                                    theme.colorScheme.primary,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize:
+                                                    MediaQuery.textScaleFactorOf(
+                                                      context,
+                                                    ) *
+                                                    16,
+                                              ),
+                                            )
+                                          : const SizedBox.shrink(),
+                                    ),
                                   ),
                                   SizedBox(width: screenWidth * 0.025),
                                   Expanded(

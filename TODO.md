@@ -16,16 +16,15 @@ Current Progress: 7/8 ✅
 - Edit `lib/pages/Management.dart` - Add ListTile for Academy Performance
 
 ### 5. Create Player Card Widget [✅]
-- `lib/widgets/AcademyPlayerCard.dart` - Replicate players.dart style + 5-star rating + notes dialog
+- `lib/widgets/AcademyPlayerCard.dart` - Replicate players.dart style + 5-star rating + coach notes dialog
 
 ### 6. Test Charts & Filters [✅]
 - Bar chart renders avg rating by pos, filters/search/sort work
 
 ### 7. Test Persistence [✅]
-- Ratings/notes save/load shared_preferences, PAC updates live
+- Ratings/coach notes save/load shared_preferences, PAC updates live
 
 ### 8. Final Testing & Completion [ ]
 - Full navigation test, responsive UI
 
 **Status:** Ready for Management nav + testing. Run `flutter pub get && flutter run` to test.
-

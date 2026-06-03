@@ -2,16 +2,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:letsplay/services/player_attributes_store.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'animations/fut_card_light_sweep.dart';
 import 'animations/idle_animated_fut_card.dart';
+import '../utils/image_helper.dart';
 
 /// 🎨 Helper to resolve card asset based on level (Pure & Deterministic)
 String getFutCardAssetByLevel(int level) {
-  if (level < 25) return 'assets/images/bronze.png';
-  if (level < 50) return 'assets/images/silver.png';
-  if (level < 75) return 'assets/images/gold.png';
+  if (level <= 25) return 'assets/images/bronze.png'; // Level 1-25
+  if (level <= 50) {
+    return 'assets/images/selver.png'; // Level 26-50 (Corrected filename)
+  }
+  if (level <= 75) return 'assets/images/gold.png'; // Level 51-75
   return 'assets/images/diamond.png';
 }
 
@@ -76,12 +80,37 @@ class FutCardFull extends StatefulWidget {
   State<FutCardFull> createState() => _FutCardFullState();
 }
 
-class _FutCardFullState extends State<FutCardFull> {
+class _FutCardFullState extends State<FutCardFull>
+    with SingleTickerProviderStateMixin {
   PlayerAttributesStore? _attributesStore;
+  late AnimationController _levelUpController;
+  late Animation<double> _celebrationScale;
+  late Animation<double> _celebrationOpacity;
+  int? _prevLevel;
 
   @override
   void initState() {
     super.initState();
+    _levelUpController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _celebrationScale = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: CurveTween(curve: Curves.easeOutBack),
+        weight: 40,
+      ),
+      TweenSequenceItem(tween: ConstantTween<double>(1.2), weight: 40),
+      TweenSequenceItem(tween: CurveTween(curve: Curves.easeIn), weight: 20),
+    ]).animate(_levelUpController);
+
+    _celebrationOpacity = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0), weight: 20),
+      TweenSequenceItem(tween: ConstantTween<double>(1.0), weight: 60),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 20),
+    ]).animate(_levelUpController);
+
     // Always load and subscribe to player attributes on mount
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final store = context.read<PlayerAttributesStore>();
@@ -109,6 +138,7 @@ class _FutCardFullState extends State<FutCardFull> {
   @override
   void dispose() {
     // 4️⃣ Navigation Stability: Unsubscribe per-player
+    _levelUpController.dispose();
     _attributesStore?.unsubscribeFromPlayer(widget.playerId);
     super.dispose();
   }
@@ -123,6 +153,13 @@ class _FutCardFullState extends State<FutCardFull> {
             widget.overrideAttributes ??
             attrStore.getPlayerAttributes(widget.playerId);
         final effectiveRating = widget.overrideRating ?? widget.rating;
+
+        // 🚀 Detect Level Up
+        if (_prevLevel != null && effectiveRating > _prevLevel!) {
+          _levelUpController.forward(from: 0.0);
+        }
+        _prevLevel = effectiveRating;
+
         final isGk = widget.position.toUpperCase() == 'GK';
 
         // The card's content is built inside LayoutBuilder to be fully responsive.
@@ -170,145 +207,118 @@ class _FutCardFullState extends State<FutCardFull> {
     bool isGk,
     int effectiveRating,
   ) {
-    final color = getFutColorByLevel(effectiveRating);
-    final List<Widget> children = [];
-    double gridWidth;
+    final themeColor = getFutColorByLevel(effectiveRating);
+    final List<Widget> stats = [];
 
     if (isGk) {
-      // 🧤 GK Layout: 2x2 Grid
-      // PAS | SAV
-      // CS  | GR
-
-      // PAS (Passing)
-      children.add(
-        _buildStatBox('PAS', attributes?.passing ?? 0, scale, color),
-      );
-      // SAV (Defending)
-      children.add(
-        _buildStatBox('SAV', attributes?.defending ?? 0, scale, color),
-      );
-      // CS (Physical)
-      children.add(
-        _buildStatBox('CS', attributes?.physical ?? 0, scale, color),
-      );
-      // GR (Pace)
-      children.add(_buildStatBox('GR', attributes?.pace ?? 0, scale, color));
-
-      // Width for 2 items: (60 * 2) + 8 = 128.
-      gridWidth = 140 * scale;
+      stats.addAll([
+        _buildStatBox('PAS', attributes?.passing ?? 0, scale, themeColor),
+        _buildStatBox('SAV', attributes?.defending ?? 0, scale, themeColor),
+        _buildStatBox('CS', attributes?.physical ?? 0, scale, themeColor),
+        _buildStatBox('GR', attributes?.pace ?? 0, scale, themeColor),
+      ]);
     } else {
-      // 🏃 Outfield Layout: 3x2 Grid
-      // PAC | SHO | PAS
-      // DRI | DEF | PHY
-
-      children.add(_buildStatBox('PAC', attributes?.pace ?? 0, scale, color));
-      children.add(
-        _buildStatBox('SHO', attributes?.shooting ?? 0, scale, color),
-      );
-      children.add(
-        _buildStatBox('PAS', attributes?.passing ?? 0, scale, color),
-      );
-      children.add(
-        _buildStatBox('DRI', attributes?.dribbling ?? 0, scale, color),
-      );
-      children.add(
-        _buildStatBox('DEF', attributes?.defending ?? 0, scale, color),
-      );
-      children.add(
-        _buildStatBox('PHY', attributes?.physical ?? 0, scale, color),
-      );
-
-      // Width for 3 items: (60 * 3) + (8 * 2) = 196.
-      gridWidth = 210 * scale;
+      stats.addAll([
+        _buildStatBox('PAC', attributes?.pace ?? 0, scale, themeColor),
+        _buildStatBox('SHO', attributes?.shooting ?? 0, scale, themeColor),
+        _buildStatBox('PAS', attributes?.passing ?? 0, scale, themeColor),
+        _buildStatBox('DRI', attributes?.dribbling ?? 0, scale, themeColor),
+        _buildStatBox('DEF', attributes?.defending ?? 0, scale, themeColor),
+        _buildStatBox('PHY', attributes?.physical ?? 0, scale, themeColor),
+      ]);
     }
 
-    return SizedBox(
-      width: gridWidth,
+    return Container(
+      width: 210 * scale,
+      alignment: Alignment.center,
       child: Wrap(
         alignment: WrapAlignment.center,
-        spacing: 8 * scale,
-        runSpacing: 6 * scale,
-        children: children,
+        spacing: 8 * scale, // Tightened horizontal spacing
+        runSpacing:
+            14 * scale, // Slightly reduced row spacing for a compact look
+        children: stats,
       ),
     );
   }
 
-  Widget _buildStatBox(String label, int value, double scale, Color color) {
-    if (label.isEmpty) return SizedBox(width: 60 * scale, height: 40 * scale);
+  Widget _buildStatBox(
+    String label,
+    int value,
+    double scale,
+    Color themeColor,
+  ) {
+    if (label.isEmpty) return const SizedBox.shrink();
 
-    // 🎨 Color Rules: Red < 50, Orange < 75, Glass/Theme > 75
-    Color fillColor;
-    if (value < 50) {
-      fillColor = const Color(0xFFD32F2F).withOpacity(0.85); // Red
-    } else if (value <= 75) {
-      fillColor = const Color(0xFFF57C00).withOpacity(0.85); // Orange
-    } else {
-      fillColor = color.withOpacity(0.4); // Glass / Theme Color
-    }
+    // 🎨 Dynamic color system
+    final bool isLow = value < 50;
 
-    return Container(
-      width: 60 * scale,
-      height: 48 * scale, // Fixed height for fill calculation
-      decoration: BoxDecoration(
-        color: const Color(0xFF2A2218).withOpacity(0.85),
-        border: Border.all(color: color.withOpacity(0.5), width: 1 * scale),
-        borderRadius: BorderRadius.circular(4 * scale),
+    final Color baseColor = isLow
+        ? const Color(0xFFFF3B30) // Red
+        : const Color(0xFFFF9F1C); // Orange / Gold
+
+    final List<Color> gradientColors = isLow
+        ? [const Color(0xFFFF6B6B), const Color(0xFFFF3B30)]
+        : [const Color(0xFFFFC75F), const Color(0xFFFF9F1C)];
+
+    final List<Shadow> statGlow = [
+      Shadow(
+        color: baseColor.withOpacity(0.7),
+        blurRadius: 12 * scale,
+        offset: const Offset(0, 0),
       ),
-      child: Stack(
-        alignment: Alignment.bottomCenter,
+      Shadow(
+        color: baseColor.withOpacity(0.35),
+        blurRadius: 24 * scale,
+        offset: const Offset(0, 0),
+      ),
+    ];
+
+    return SizedBox(
+      width: 64 * scale, // Narrower container for compact typography
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 📊 Vertical Fill Animation
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0, end: value / 100),
-                duration: const Duration(milliseconds: 800),
-                builder: (context, progress, child) {
-                  return Container(
-                    width: constraints.maxWidth,
-                    height: constraints.maxHeight * progress,
-                    decoration: BoxDecoration(
-                      color: fillColor,
-                      borderRadius: BorderRadius.vertical(
-                        bottom: Radius.circular(3 * scale),
-                        top: Radius.circular(progress >= 0.95 ? 3 * scale : 0),
-                      ),
-                    ),
-                  );
-                },
+          //  Animated Stat Number
+          TweenAnimationBuilder<int>(
+            tween: IntTween(begin: 0, end: value),
+            duration: const Duration(milliseconds: 900),
+            builder: (context, val, child) {
+              return ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: gradientColors,
+                ).createShader(bounds),
+                child: Text(
+                  '$val',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.saira(
+                    fontSize: 24 * scale, // Refined, slightly smaller size
+                    fontWeight: FontWeight
+                        .w600, // Semi-bold for a premium, cleaner look
+                    letterSpacing: -0.8 * scale, // Subtle negative tracking
+                    color: Colors.white,
+                    height: 1,
+                    shadows: statGlow,
+                  ),
+                ),
               );
             },
           ),
-          // 📝 Text Content (Centered)
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TweenAnimationBuilder<int>(
-                tween: IntTween(begin: 0, end: value),
-                duration: const Duration(milliseconds: 800),
-                builder: (context, val, child) => Text(
-                  '$val',
-                  style: GoogleFonts.saira(
-                    fontSize: 18 * scale,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white, // White text for contrast
-                    shadows: [
-                      Shadow(color: Colors.black54, blurRadius: 2 * scale),
-                    ],
-                    height: 1,
-                  ),
-                ),
-              ),
-              Text(
-                label,
-                style: GoogleFonts.saira(
-                  fontSize: 10 * scale,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white70,
-                  height: 1,
-                ),
-              ),
-            ],
+
+          SizedBox(height: 4 * scale),
+
+          // 🏷️ Label
+          Text(
+            label,
+            style: GoogleFonts.saira(
+              fontSize: 12 * scale,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 2.5 * scale,
+              color: Colors.white.withOpacity(0.6),
+              height: 1,
+            ),
           ),
         ],
       ),
@@ -350,7 +360,16 @@ class _FutCardFullState extends State<FutCardFull> {
             // 1. Animated Background Layer (Breathes)
             Positioned.fill(
               child: IdleAnimatedFutCard(
-                child: Image.asset(backgroundAsset, fit: BoxFit.contain),
+                child: Image.asset(
+                  backgroundAsset,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/images/gold.png',
+                      fit: BoxFit.contain,
+                    ); // Fallback to gold
+                  },
+                ),
               ),
             ),
             // ✨ Premium Light Sweep Overlay (Background Effect)
@@ -396,7 +415,10 @@ class _FutCardFullState extends State<FutCardFull> {
                       ),
                       image: hasValidCountry
                           ? DecorationImage(
-                              image: NetworkImage(widget.countryIcon),
+                              image: CachedNetworkImageProvider(
+                                ImageHelper.refreshImageUrl(widget.countryIcon),
+                                cacheKey: widget.countryIcon,
+                              ),
                               fit: BoxFit.contain,
                             )
                           : null,
@@ -433,12 +455,9 @@ class _FutCardFullState extends State<FutCardFull> {
                     shape: BoxShape.circle,
                     image: hasValidUrl
                         ? DecorationImage(
-                            image: NetworkImage(
-                              // Add cache-busting timestamp to force reload
-                              // 🛡️ Safe string interpolation
-                              widget.avatarUrl!.contains('?')
-                                  ? '${widget.avatarUrl!}&t=${DateTime.now().millisecondsSinceEpoch}'
-                                  : '${widget.avatarUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
+                            image: CachedNetworkImageProvider(
+                              ImageHelper.refreshImageUrl(widget.avatarUrl!),
+                              cacheKey: widget.avatarUrl,
                             ),
                             fit: BoxFit.cover,
                             onError: (exception, stackTrace) {
@@ -479,25 +498,19 @@ class _FutCardFullState extends State<FutCardFull> {
 
             // 🏷️ Player Name (Centered)
             Positioned(
-              top: 295 * scale,
-              child: SizedBox(
-                width: 280 * scale,
-                child: Column(
-                  children: [
-                    Text(
-                      widget.playerName,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.saira(
-                        fontSize: 22 * scale,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF4A3728),
-                        shadows: [
-                          Shadow(color: Colors.black54, blurRadius: 3 * scale),
-                        ],
-                      ),
-                    ),
+              top: 290 * scale, // Slightly adjusted vertical position
+              width: cardWidth * 0.8, // Constrain width to 80% of card width
+              child: Text(
+                widget.playerName,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.saira(
+                  fontSize: 22 * scale,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF4A3728),
+                  shadows: [
+                    Shadow(color: Colors.black54, blurRadius: 3 * scale),
                   ],
                 ),
               ),
@@ -506,47 +519,136 @@ class _FutCardFullState extends State<FutCardFull> {
             // 🎯 Attributes Grid (Coach-Driven, Always Visible)
             // PAC, SHO, PAS, DRI, DEF, PHY - 2x3 grid
             Positioned(
-              top: 345 * scale,
-              child: _attributesGrid(
-                attributes,
-                scale,
-                displayPosition,
-                isGk,
-                effectiveRating,
+              top: 340 * scale, // Slightly adjusted vertical position
+              width: cardWidth * 0.9, // Give it more horizontal space
+              child: FittedBox(
+                // Ensure the grid scales to fit
+                fit: BoxFit.scaleDown,
+                child: _attributesGrid(
+                  attributes,
+                  scale,
+                  displayPosition,
+                  isGk,
+                  effectiveRating,
+                ),
               ),
             ),
 
             // 🔰 Level Label (Bottom of card)
             Positioned(
               bottom: 22 * scale,
-              child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 32 * scale,
-                  vertical: 10 * scale,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4A3728),
-                  borderRadius: BorderRadius.circular(25 * scale),
-                  border: Border.all(
-                    color: const Color(0xFF8B6F47),
-                    width: 2 * scale,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 4 * scale,
-                      offset: Offset(0, 2 * scale),
+              child: AnimatedBuilder(
+                animation: _levelUpController,
+                builder: (context, child) {
+                  // Badge glows during level up
+                  final double glow =
+                      _levelUpController.value > 0 &&
+                          _levelUpController.value < 0.8
+                      ? (1.0 - (_levelUpController.value - 0.5).abs() * 2)
+                      : 0.0;
+
+                  return Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 32 * scale,
+                      vertical: 10 * scale,
                     ),
-                  ],
-                ),
-                child: Text(
-                  'LV. $effectiveRating',
-                  style: GoogleFonts.saira(
-                    color: const Color(0xFFE8D4B0),
-                    fontSize: 20 * scale,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
-                  ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4A3728),
+                      borderRadius: BorderRadius.circular(25 * scale),
+                      border: Border.all(
+                        color: Color.lerp(
+                          const Color(0xFF8B6F47),
+                          const Color(0xFFFFD700),
+                          glow,
+                        )!,
+                        width: (2 + (glow * 2)) * scale,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFFFFD700,
+                          ).withOpacity(glow * 0.6),
+                          blurRadius: 15 * scale * glow,
+                          spreadRadius: 5 * scale * glow,
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 4 * scale,
+                          offset: Offset(0, 2 * scale),
+                        ),
+                      ],
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      transitionBuilder: (child, animation) => ScaleTransition(
+                        scale: animation,
+                        child: FadeTransition(opacity: animation, child: child),
+                      ),
+                      child: Text(
+                        'LV. $effectiveRating',
+                        key: ValueKey(effectiveRating),
+                        style: GoogleFonts.saira(
+                          color: Color.lerp(
+                            const Color(0xFFE8D4B0),
+                            Colors.white,
+                            glow,
+                          ),
+                          fontSize: 20 * scale,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            // ✨ Level Up Celebration Overlay
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _levelUpController,
+                  builder: (context, child) {
+                    if (_levelUpController.value <= 0) {
+                      return const SizedBox.shrink();
+                    }
+                    return Center(
+                      child: Opacity(
+                        opacity: _celebrationOpacity.value,
+                        child: Transform.scale(
+                          scale: _celebrationScale.value * scale,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'LEVEL UP!',
+                                style: GoogleFonts.saira(
+                                  fontSize: 48,
+                                  fontWeight: FontWeight.w900,
+                                  color: const Color(0xFFFFD700),
+                                  fontStyle: FontStyle.italic,
+                                  letterSpacing: 4,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.black,
+                                      blurRadius: 10 * scale,
+                                    ),
+                                    Shadow(
+                                      color: const Color(
+                                        0xFFFFD700,
+                                      ).withOpacity(0.5),
+                                      blurRadius: 20 * scale,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),

@@ -158,9 +158,7 @@ class _SignUpPageState extends State<SignUpPage> {
         const Duration(days: 365 * 16),
       ), // 16 years old by default
       firstDate: DateTime(1950),
-      lastDate: DateTime.now().subtract(
-        const Duration(days: 365 * 13),
-      ), // minimum 13 years old
+      lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
@@ -308,7 +306,9 @@ class _SignUpPageState extends State<SignUpPage> {
           ),
         );
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => MainLayout(ctrl: widget.ctrl)),
+          MaterialPageRoute(
+            builder: (context) => MainLayout(ctrl: widget.ctrl),
+          ),
           (route) => false,
         );
       }

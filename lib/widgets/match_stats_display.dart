@@ -18,11 +18,13 @@ import '../services/player_stats_store.dart';
 class MatchStatsDisplay extends StatelessWidget {
   final String playerId;
   final bool compact;
+  final bool isGk;
 
   const MatchStatsDisplay({
     super.key,
     required this.playerId,
     this.compact = false,
+    this.isGk = false,
   });
 
   @override
@@ -38,37 +40,98 @@ class MatchStatsDisplay extends StatelessWidget {
         final motm = statsStore
             .getStat(playerId, PlayerStatsStore.statMotm)
             .toInt();
+        final yellow = statsStore
+            .getStat(playerId, PlayerStatsStore.statYellow)
+            .toInt();
+        final red = statsStore
+            .getStat(playerId, PlayerStatsStore.statRed)
+            .toInt();
+        final matches = statsStore
+            .getStat(playerId, PlayerStatsStore.statMatches)
+            .toInt();
 
-        // Calculate total matches (you may need to track this separately)
-        // For now, we'll derive from goals + assists as an approximation
-        final matches = ((goals + assists) * 0.6).ceil().clamp(1, 999);
+        // GK Specific stats
+        final saves = statsStore
+            .getStat(playerId, PlayerStatsStore.statSaves)
+            .toInt();
+        final cleanSheets = statsStore
+            .getStat(playerId, PlayerStatsStore.statCleanSheet)
+            .toInt();
 
         return Container(
           margin: const EdgeInsets.only(top: 16),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.6),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: const Color(0xFF8B6F47).withOpacity(0.3),
-              width: 1,
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                const Color(0xFF0A0E27).withOpacity(0.8),
+                const Color(0xFF151B3D).withOpacity(0.8),
+              ],
             ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withOpacity(0.05), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: compact
-              ? _buildCompactLayout(goals, assists, motm, matches)
-              : _buildFullLayout(goals, assists, motm, matches),
+              ? _buildCompactLayout(
+                  goals,
+                  assists,
+                  motm,
+                  matches,
+                  yellow,
+                  red,
+                  saves,
+                  cleanSheets,
+                )
+              : _buildFullLayout(
+                  goals,
+                  assists,
+                  motm,
+                  matches,
+                  yellow,
+                  red,
+                  saves,
+                  cleanSheets,
+                ),
         );
       },
     );
   }
 
-  Widget _buildFullLayout(int goals, int assists, int motm, int matches) {
+  Widget _buildFullLayout(
+    int goals,
+    int assists,
+    int motm,
+    int matches,
+    int yellow,
+    int red,
+    int saves,
+    int cs,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _statItem('⚽', goals, 'GOALS'),
+        if (isGk) ...[
+          _statItem('🧤', saves, 'SAVES'),
+          _divider(),
+          _statItem('🛡️', cs, 'CLEAN SHEET'),
+        ] else ...[
+          _statItem('⚽', goals, 'GOALS'),
+          _divider(),
+          _statItem('🅰️', assists, 'ASSISTS'),
+        ],
         _divider(),
-        _statItem('🅰️', assists, 'ASSISTS'),
+        _statItem('🟨', yellow, 'YELLOW'),
+        _divider(),
+        _statItem('🟥', red, 'RED'),
         _divider(),
         _statItem('🏆', motm, 'MOTM'),
         _divider(),
@@ -77,14 +140,30 @@ class MatchStatsDisplay extends StatelessWidget {
     );
   }
 
-  Widget _buildCompactLayout(int goals, int assists, int motm, int matches) {
+  Widget _buildCompactLayout(
+    int goals,
+    int assists,
+    int motm,
+    int matches,
+    int yellow,
+    int red,
+    int saves,
+    int cs,
+  ) {
     return Wrap(
       alignment: WrapAlignment.center,
       spacing: 24,
       runSpacing: 12,
       children: [
-        _compactStatItem('⚽', goals),
-        _compactStatItem('🅰️', assists),
+        if (isGk) ...[
+          _compactStatItem('🧤', saves),
+          _compactStatItem('🛡️', cs),
+        ] else ...[
+          _compactStatItem('⚽', goals),
+          _compactStatItem('🅰️', assists),
+        ],
+        _compactStatItem('🟨', yellow),
+        _compactStatItem('🟥', red),
         _compactStatItem('🏆', motm),
         _compactStatItem('📅', matches),
       ],
@@ -98,27 +177,32 @@ class MatchStatsDisplay extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(icon, style: const TextStyle(fontSize: 20)),
-            const SizedBox(width: 8),
+            Text(icon, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 6),
             Text(
               value.toString(),
               style: GoogleFonts.saira(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
-                shadows: [const Shadow(color: Colors.black54, blurRadius: 4)],
+                shadows: [
+                  Shadow(
+                    color: Colors.blueAccent.withOpacity(0.3),
+                    blurRadius: 8,
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           label,
           style: GoogleFonts.saira(
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: Colors.white70,
-            letterSpacing: 1,
+            color: Colors.white.withOpacity(0.5),
+            letterSpacing: 1.5,
           ),
         ),
       ],
@@ -129,14 +213,17 @@ class MatchStatsDisplay extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(icon, style: const TextStyle(fontSize: 18)),
+        Text(icon, style: const TextStyle(fontSize: 16)),
         const SizedBox(width: 4),
         Text(
           value.toString(),
           style: GoogleFonts.saira(
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
             color: Colors.white,
+            shadows: [
+              Shadow(color: Colors.blueAccent.withOpacity(0.2), blurRadius: 4),
+            ],
           ),
         ),
       ],
@@ -144,7 +231,11 @@ class MatchStatsDisplay extends StatelessWidget {
   }
 
   Widget _divider() {
-    return Container(width: 1, height: 40, color: Colors.white24);
+    return Container(
+      width: 1,
+      height: 30,
+      color: Colors.white.withOpacity(0.08),
+    );
   }
 }
 
@@ -194,6 +285,12 @@ class MinimalStatsRow extends StatelessWidget {
         final assists = statsStore
             .getStat(playerId, PlayerStatsStore.statAssists)
             .toInt();
+        final yellow = statsStore
+            .getStat(playerId, PlayerStatsStore.statYellow)
+            .toInt();
+        final red = statsStore
+            .getStat(playerId, PlayerStatsStore.statRed)
+            .toInt();
 
         return Wrap(
           spacing: 16,
@@ -202,6 +299,8 @@ class MinimalStatsRow extends StatelessWidget {
           children: [
             _miniStat('⚽', goals, textColor ?? Colors.white),
             _miniStat('🅰️', assists, textColor ?? Colors.white),
+            _miniStat('🟨', yellow, textColor ?? Colors.white),
+            _miniStat('🟥', red, textColor ?? Colors.white),
           ],
         );
       },

@@ -6,6 +6,7 @@ import 'management/AddItemScreen.dart';
 import 'management/UserManager.dart';
 import 'management/ReportsScreen.dart';
 import 'management/AreasStatisticsPage.dart';
+import 'management/AcademyAnnouncementsScreen.dart';
 import '../widgets/GlassContainer.dart';
 
 class ManagementScreen extends StatelessWidget {
@@ -63,6 +64,30 @@ class ManagementScreen extends StatelessWidget {
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => AddFieldScreen(ctrl: ctrl),
+                        ),
+                      ),
+                    ),
+                  ),
+                  GlassCard(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.campaign_outlined,
+                        color: theme.iconTheme.color,
+                      ),
+                      title: Text(
+                        ctrl.isArabic ? 'الإعلانات والأخبار' : 'Announcements',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: theme.iconTheme.color,
+                      ),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AcademyAnnouncementsScreen(ctrl: ctrl),
                         ),
                       ),
                     ),

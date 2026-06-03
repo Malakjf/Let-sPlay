@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import '../services/player_attributes_store.dart';
 import '../services/player_stats_store.dart';
@@ -36,9 +37,14 @@ class _FutCardDemoPageState extends State<FutCardDemoPage> {
     final statsStore = context.read<PlayerStatsStore>();
 
     // Set up demo player attributes
-    attributesStore.updateFromCoachEvaluation(
+    attributesStore.submitEvaluation(
       playerId: _demoPlayerId,
+      playerName: 'Mohamed Salah',
       position: 'RW',
+      ratedById: FirebaseAuth.instance.currentUser?.uid ?? 'demo_admin',
+      ratedByName:
+          FirebaseAuth.instance.currentUser?.displayName ?? 'Demo Admin',
+      ratedByRole: 'admin',
       evaluation: const CoachEvaluation(
         paceRating: 89,
         shootingRating: 92,
@@ -276,7 +282,7 @@ class _FutCardDemoPageState extends State<FutCardDemoPage> {
           const SizedBox(height: 32),
           _buildActionButtons(),
           const SizedBox(height: 32),
-          _buildCoachEvaluationCard(),
+          _buildEvaluationControls(),
         ],
       ),
     );
@@ -332,43 +338,6 @@ class _FutCardDemoPageState extends State<FutCardDemoPage> {
     );
   }
 
-  Widget _buildCoachEvaluationCard() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1F2E),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF8B6F47)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '⚙️ Coach Evaluation',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Attributes update in real-time when coach provides new ratings.',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: _simulateCoachUpdate,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF64B5F6),
-            ),
-            child: const Text('Simulate Rating Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _triggerGoalAnimation() {
     final statsStore = context.read<PlayerStatsStore>();
     final currentGoals = statsStore.getStat(
@@ -415,13 +384,70 @@ class _FutCardDemoPageState extends State<FutCardDemoPage> {
     );
   }
 
-  void _simulateCoachUpdate() {
+  Widget _buildEvaluationControls() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1F2E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF8B6F47)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '⚙️ Management Controls',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _simulateUpdate(role: 'coach'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF64B5F6),
+                  ),
+                  child: const Text('Coach Rating (Pending)'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _simulateUpdate(role: 'admin'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFA000),
+                  ),
+                  child: const Text('Admin Rating (Instant)'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _simulateUpdate({required String role}) {
     final attributesStore = context.read<PlayerAttributesStore>();
+    final bool isAdmin = role == 'admin';
 
     // Update with slightly different ratings to trigger animations
-    attributesStore.updateFromCoachEvaluation(
+    attributesStore.submitEvaluation(
       playerId: _demoPlayerId,
+      playerName: 'Mohamed Salah',
       position: 'RW',
+      ratedById: FirebaseAuth.instance.currentUser?.uid ?? 'demo_$role',
+      ratedByName:
+          FirebaseAuth.instance.currentUser?.displayName ?? 'Demo $role',
+      ratedByRole: role,
+      notes: isAdmin
+          ? 'Admin instant update: High performance observed.'
+          : 'Coach review: Improving technical skills.',
       evaluation: CoachEvaluation(
         paceRating: 90 + (DateTime.now().second % 5),
         shootingRating: 93 + (DateTime.now().second % 4),
@@ -435,10 +461,14 @@ class _FutCardDemoPageState extends State<FutCardDemoPage> {
     );
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('⚡ Attributes updated! Watch them animate!'),
-        backgroundColor: Color(0xFF4CAF50),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(
+          isAdmin
+              ? '🚀 Admin update applied instantly!'
+              : '📝 Coach rating submitted for approval.',
+        ),
+        backgroundColor: isAdmin ? Colors.orange : const Color(0xFF4CAF50),
+        duration: const Duration(seconds: 2),
       ),
     );
   }

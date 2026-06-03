@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/cloudinary_service.dart';
 import '../services/firebase_service.dart';
+import '../utils/image_helper.dart';
 
 /// Dialog for uploading user avatar
 ///
@@ -73,6 +75,13 @@ class _AvatarUploadDialogState extends State<AvatarUploadDialog> {
     });
 
     try {
+      // Evict old cache
+      if (widget.currentAvatarUrl != null) {
+        await ImageHelper.evictImage(
+          widget.currentAvatarUrl,
+        ); // Evict old image
+      }
+
       // Upload to Cloudinary
       debugPrint('📤 Uploading avatar for user: ${widget.userId}');
       final imageUrl = await _cloudinary.uploadAvatar(
@@ -210,12 +219,16 @@ class _AvatarUploadDialogState extends State<AvatarUploadDialog> {
             widget.currentAvatarUrl!.startsWith('https'))) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
-        child: Image.network(
-          widget.currentAvatarUrl!,
+        child: CachedNetworkImage(
+          imageUrl: ImageHelper.refreshImageUrl(
+            widget.currentAvatarUrl!,
+          ), // Use refreshImageUrl
+          cacheKey:
+              '${widget.currentAvatarUrl!}_${DateTime.now().millisecondsSinceEpoch}', // Unique cacheKey
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _buildPlaceholder(theme);
-          },
+          placeholder: (context, url) =>
+              const Center(child: CircularProgressIndicator()),
+          errorWidget: (context, url, error) => _buildPlaceholder(theme),
         ),
       );
     }

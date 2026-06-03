@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:cloudinary_public/cloudinary_public.dart';
+import '../utils/image_helper.dart'; // Import ImageHelper
 
 /// Cloudinary service for unsigned image uploads
 ///
@@ -15,13 +15,13 @@ class CloudinaryService {
 
   // Cloudinary configuration
   static const String _cloudName = 'dndl9unee';
-  static const String _uploadUrl =
-      'https://api.cloudinary.com/v1_1/$_cloudName/image/upload';
 
   // Upload presets
   static const String avatarPreset = 'letsplay_prod';
   static const String fieldsPreset = 'fields_unsigned';
   static const String productsPreset = 'products_unsigned';
+  static const String academyPreset = 'academy_upload';
+  static const String academyFolder = 'academy_ads';
 
   /// Upload image bytes to Cloudinary using unsigned upload
   ///
@@ -31,8 +31,8 @@ class CloudinaryService {
   /// - [publicId]: Optional custom publicId for the uploaded image
   /// - [folder]: Optional folder path (usually handled by preset)
   ///
-  /// Returns the secure_url of the uploaded image
-  Future<String> uploadImage({
+  /// Returns a Map containing 'url' and 'public_id'
+  Future<Map<String, String>> uploadImage({
     required Uint8List imageBytes,
     required String uploadPreset,
     String? publicId,
@@ -41,59 +41,32 @@ class CloudinaryService {
     try {
       debugPrint('📤 Cloudinary upload started');
       debugPrint('   Preset: $uploadPreset');
-      debugPrint('   PublicId: ${publicId ?? "auto"}');
       debugPrint('   Image size: ${imageBytes.length} bytes');
 
-      // Create multipart request
-      final request = http.MultipartRequest('POST', Uri.parse(_uploadUrl));
+      // Use CloudinaryPublic for a minimal and valid unsigned upload flow
+      final cloudinary = CloudinaryPublic(
+        _cloudName,
+        uploadPreset,
+        cache: false,
+      );
 
-      // Add required fields
-      request.fields['upload_preset'] = uploadPreset;
-
-      // Add optional fields
-      if (publicId != null && publicId.isNotEmpty) {
-        request.fields['public_id'] = publicId;
-      }
-      if (folder != null && folder.isNotEmpty) {
-        request.fields['folder'] = folder;
-      }
-
-      // Add image file
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          imageBytes,
-          filename: 'upload.jpg',
+      final response = await cloudinary.uploadFile(
+        CloudinaryFile.fromByteData(
+          imageBytes.buffer.asByteData(),
+          identifier: publicId ?? 'upload', // Use unique ID as public_id
+          folder: folder,
         ),
       );
 
-      // Send request
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      // Use ImageHelper to refresh URL with timestamp for cache busting
+      final secureUrl = ImageHelper.refreshImageUrl(response.secureUrl);
 
-      debugPrint('📥 Cloudinary response: ${response.statusCode}');
+      debugPrint('✅ Upload successful: $secureUrl');
+      debugPrint('✅ Public ID: ${response.publicId}');
 
-      if (response.statusCode == 200) {
-        final jsonResponse = json.decode(response.body);
-        final secureUrl = jsonResponse['secure_url'] as String;
-
-        debugPrint('✅ Upload successful');
-        debugPrint('   URL: $secureUrl');
-
-        return secureUrl;
-      } else {
-        final errorBody = response.body;
-        debugPrint('❌ Upload failed: ${response.statusCode}');
-        debugPrint('   Error: $errorBody');
-        throw CloudinaryException(
-          'Upload failed with status ${response.statusCode}: $errorBody',
-        );
-      }
+      return {'url': secureUrl, 'public_id': response.publicId};
     } catch (e) {
       debugPrint('❌ Cloudinary upload error: $e');
-      if (e is CloudinaryException) {
-        rethrow;
-      }
       throw CloudinaryException('Failed to upload image: $e');
     }
   }
@@ -104,11 +77,14 @@ class CloudinaryService {
     required Uint8List imageBytes,
     required String userId,
   }) async {
-    return uploadImage(
+    // Keep uniqueId generation for cache busting on CDN
+    final uniqueId = '${userId}_${DateTime.now().millisecondsSinceEpoch}';
+    final result = await uploadImage(
       imageBytes: imageBytes,
       uploadPreset: avatarPreset,
-      publicId: userId,
+      publicId: uniqueId,
     );
+    return result['url']!;
   }
 
   /// Upload product image
@@ -117,20 +93,36 @@ class CloudinaryService {
     required Uint8List imageBytes,
     required String productId,
   }) async {
-    return uploadImage(
+    // Keep uniqueId generation for cache busting on CDN
+    final uniqueId = '${productId}_${DateTime.now().millisecondsSinceEpoch}';
+    final result = await uploadImage(
       imageBytes: imageBytes,
       uploadPreset: productsPreset,
-      publicId: productId,
+      publicId: uniqueId,
     );
+    return result['url']!;
   }
 
   /// Upload field image
   /// Uses fields_unsigned preset with auto-generated publicId
   Future<String> uploadFieldImage({required Uint8List imageBytes}) async {
-    return uploadImage(
+    final result = await uploadImage(
       imageBytes: imageBytes,
       uploadPreset: fieldsPreset,
       // No publicId - will be auto-generated
+    );
+    return result['url']!;
+  }
+
+  /// Upload academy announcement image
+  /// Uses academy_upload preset and academy_ads folder
+  Future<Map<String, String>> uploadAcademyAnnouncementImage({
+    required Uint8List imageBytes,
+  }) async {
+    return uploadImage(
+      imageBytes: imageBytes,
+      uploadPreset: academyPreset,
+      folder: academyFolder,
     );
   }
 }

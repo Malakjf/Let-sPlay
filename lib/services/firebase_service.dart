@@ -1,3 +1,5 @@
+// ignore_for_file: curly_braces_in_flow_control_structures
+
 import 'dart:async';
 import 'dart:io';
 
@@ -10,6 +12,45 @@ import '../models/role_request.dart';
 import 'firestore_readiness_guard.dart';
 
 class FirebaseService {
+  /// Creates a user and its Firestore document from the Admin Dashboard.
+  Future<void> adminCreateUser({
+    required String email,
+    required String password,
+    required String name,
+    required dynamic role,
+  }) async {
+    // Creates the Authentication account
+    final cred = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    String roleStr = 'Player';
+    if (role.name == 'admin')
+      roleStr = 'Admin';
+    else if (role.name == 'coach')
+      roleStr = 'Coach';
+    else if (role.name == 'organizer')
+      roleStr = 'Organizer';
+    else if (role.name == 'academy')
+      // ignore: duplicate_ignore
+      // ignore: curly_braces_in_flow_control_structures
+      roleStr = 'academy_player';
+
+    // Creates the associated User profile in Firestore
+    await saveUserData(cred.user!.uid, {
+      'uid': cred.user!.uid,
+      'email': email.toLowerCase(),
+      'username': email.split('@')[0],
+      'name': name.isEmpty ? email.split('@')[0] : name,
+      'role': roleStr,
+      'permissionLevel': role.name.toUpperCase(),
+      'walletCredit': 0.0,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   /// Real-time stream of store items (active only)
   Stream<List<Map<String, dynamic>>> storeItemsStream({
     bool onlyActive = true,
@@ -149,6 +190,66 @@ class FirebaseService {
         transaction.update(matchRef, {'waitingList': waiting});
       } else {
         players.add(userId);
+        transaction.update(matchRef, {
+          'players': players,
+          'playersCount': players.length,
+        });
+      }
+    });
+  }
+
+  /// Allows a user to add ANOTHER specific user to a match.
+  /// Logic mirrors joinMatchTransaction but for a target userId.
+  Future<void> addOtherUserToMatch({
+    required String matchId,
+    required String targetUserId,
+  }) async {
+    _requireNonEmptyId(matchId, 'matchId');
+    _requireNonEmptyId(targetUserId, 'targetUserId');
+
+    final matchRef = _db.collection('matches').doc(matchId);
+
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(matchRef);
+      if (!snapshot.exists) throw Exception('Match not found');
+
+      final data = snapshot.data()!;
+
+      // Check if match has ended
+      final matchDateRaw = data['date'];
+      if (matchDateRaw != null) {
+        DateTime matchDate;
+        if (matchDateRaw is Timestamp)
+          matchDate = matchDateRaw.toDate();
+        else if (matchDateRaw is String)
+          matchDate = DateTime.tryParse(matchDateRaw) ?? DateTime.now();
+        else
+          matchDate = DateTime.now();
+
+        int durationMin = safeInt(data['duration'], 90);
+        final matchEnd = matchDate.add(Duration(minutes: durationMin));
+        if (DateTime.now().isAfter(matchEnd)) {
+          throw Exception('Match has already ended');
+        }
+      }
+
+      final players = List<String>.from(data['players'] ?? []);
+      final waiting = List<Map<String, dynamic>>.from(
+        data['waitingList'] ?? [],
+      );
+
+      // Prevent duplicates
+      if (players.contains(targetUserId) ||
+          waiting.any((w) => w['userId'] == targetUserId)) {
+        throw Exception('User is already in the match');
+      }
+
+      final maxPlayers = safeInt(data['maxPlayers'] ?? 0);
+
+      if (maxPlayers > 0 && players.length >= maxPlayers) {
+        throw Exception('MATCH_FULL');
+      } else {
+        players.add(targetUserId);
         transaction.update(matchRef, {
           'players': players,
           'playersCount': players.length,
@@ -547,7 +648,7 @@ class FirebaseService {
       'goals': 0,
       'assists': 0,
       'motm': 0,
-      'matches': 0,
+      'matchesPlayed': 0,
       'level': 1,
       'rating': 0,
       'yellowCards': 0,
@@ -587,7 +688,7 @@ class FirebaseService {
           'goals': 0,
           'assists': 0,
           'motm': 0,
-          'matches': 0,
+          'matchesPlayed': 0,
           'level': 1,
           'rating': 0,
           'yellowCards': 0,
@@ -735,6 +836,159 @@ class FirebaseService {
       debugPrint('❌ updatePlayer failed for $playerId: $e');
       rethrow;
     }
+  }
+
+  /* ================= EVALUATIONS (Performance Ratings) ================= */
+
+  Future<String> saveEvaluation(Map<String, dynamic> eval) async {
+    final id = _normalizeOrCreateId(eval['id']);
+    final now = FieldValue.serverTimestamp();
+    final payload = {
+      ...eval,
+      'id': id,
+      'updatedAt': now,
+      'createdAt': eval['createdAt'] ?? now,
+    };
+
+    await _db
+        .collection('evaluations')
+        .doc(id)
+        .set(payload, SetOptions(merge: true));
+    return id;
+  }
+
+  Future<Map<String, dynamic>?> getEvaluation(String id) async {
+    try {
+      _requireNonEmptyId(id, 'id');
+      final doc = await _db.collection('evaluations').doc(id).get();
+      return doc.exists ? doc.data() : null;
+    } catch (e) {
+      debugPrint('❌ getEvaluation error: $e');
+      return null;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> listEvaluationsForAdmin({
+    int limit = 200,
+  }) async {
+    try {
+      final snap = await _db
+          .collection('evaluations')
+          .where('submittedByCoach', isEqualTo: true)
+          .orderBy('createdAt', descending: true)
+          .limit(limit)
+          .get();
+      return snap.docs.map((d) {
+        final m = d.data();
+        m['id'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('❌ listEvaluationsForAdmin error: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> listEvaluationsByCoach(
+    String coachId,
+  ) async {
+    try {
+      final snap = await _db
+          .collection('evaluations')
+          .where('coachId', isEqualTo: coachId)
+          .orderBy('createdAt', descending: true)
+          .get();
+      return snap.docs.map((d) {
+        final m = d.data();
+        m['id'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('❌ listEvaluationsByCoach error: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> listEvaluationsForPlayer(
+    String playerId,
+  ) async {
+    try {
+      final snap = await _db
+          .collection('evaluations')
+          .where('playerId', isEqualTo: playerId)
+          .orderBy('createdAt', descending: true)
+          .get();
+      return snap.docs.map((d) {
+        final m = d.data();
+        m['id'] = d.id;
+        return m;
+      }).toList();
+    } catch (e) {
+      debugPrint('❌ listEvaluationsForPlayer error: $e');
+      return [];
+    }
+  }
+
+  Future<void> sendEvaluationToAdmin(String evaluationId) async {
+    _requireNonEmptyId(evaluationId, 'evaluationId');
+    final user = currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    // Only coaches may send to admin
+    final role =
+        (await getUserData(user.uid))['role']?.toString().toLowerCase() ??
+        'player';
+    if (role != 'coach') {
+      throw Exception('Only coaches can send evaluations to admin');
+    }
+
+    await _db.collection('evaluations').doc(evaluationId).update({
+      'status': 'Pending Admin Review',
+      'submittedByCoach': true,
+      'submittedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> approveAndSendToPlayer(String evaluationId) async {
+    _requireNonEmptyId(evaluationId, 'evaluationId');
+    final user = currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final role =
+        (await getUserData(user.uid))['role']?.toString().toLowerCase() ??
+        'player';
+    if (role != 'admin') {
+      throw Exception('Only admins can approve and send evaluations');
+    }
+
+    await _db.collection('evaluations').doc(evaluationId).update({
+      'status': 'Sent to Player',
+      'reviewedBy': user.uid,
+      'sentToPlayerBy': user.uid,
+      'reviewedAt': FieldValue.serverTimestamp(),
+      'sentAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  Future<void> rejectEvaluation(String evaluationId, {String? reason}) async {
+    _requireNonEmptyId(evaluationId, 'evaluationId');
+    final user = currentUser;
+    if (user == null) throw Exception('Not authenticated');
+
+    final role =
+        (await getUserData(user.uid))['role']?.toString().toLowerCase() ??
+        'player';
+    if (role != 'admin') throw Exception('Only admins can reject evaluations');
+
+    await _db.collection('evaluations').doc(evaluationId).update({
+      'status': 'Rejected',
+      'reviewedBy': user.uid,
+      'rejectionReason': reason ?? '',
+      'reviewedAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
   }
 
   Future<void> updateUserRole(String uid, String role) async {
@@ -1086,5 +1340,61 @@ class FirebaseService {
     final url = await ref.getDownloadURL();
     await updateUserData(uid, {'avatarUrl': url});
     return url;
+  }
+
+  /* ================= ANNOUNCEMENTS ================= */
+
+  Future<void> saveAnnouncement(Map<String, dynamic> data, {String? id}) async {
+    final collection = _db.collection('academy_announcements');
+    if (id != null) {
+      await collection.doc(id).update(data);
+    } else {
+      await collection.add({
+        ...data,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getAnnouncements() async {
+    final snap = await _db
+        .collection('academy_announcements')
+        .orderBy('createdAt', descending: true)
+        .get();
+    return snap.docs.map((d) => {...d.data(), 'id': d.id}).toList();
+  }
+
+  Future<void> deleteAnnouncement(String id) async {
+    await _db.collection('academy_announcements').doc(id).delete();
+  }
+
+  /// Fetches announcements currently valid for a specific user role
+  Future<List<Map<String, dynamic>>> getValidAnnouncements(
+    String userRole,
+  ) async {
+    final now = Timestamp.now();
+    // We can't do multiple inequality filters on different fields in basic Firestore easily,
+    // so we fetch active ones starting now or in the past, then filter end date locally.
+    final snap = await _db
+        .collection('academy_announcements')
+        .where('isActive', isEqualTo: true)
+        .where('startDate', isLessThanOrEqualTo: now)
+        .get();
+
+    final normalizedRole = userRole.toLowerCase();
+
+    return snap.docs.map((d) => {...d.data(), 'id': d.id}).where((data) {
+      // Filter 1: End Date check
+      final end = data['endDate'] as Timestamp?;
+      if (end == null || end.seconds < now.seconds) return false;
+
+      // Filter 2: Role Targeting
+      final roles = List<String>.from(
+        data['targetRoles'] ?? ['All'],
+      ).map((r) => r.toLowerCase()).toList();
+
+      if (roles.contains('all')) return true;
+      return roles.contains(normalizedRole);
+    }).toList();
   }
 }

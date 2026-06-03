@@ -4,6 +4,8 @@
 /// to implement coach-driven attribute evaluation.
 library;
 
+import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/player_attributes_store.dart';
@@ -28,10 +30,17 @@ void exampleBasicEvaluation(BuildContext context) {
   );
 
   // Update attributes for player
-  attributesStore.updateFromCoachEvaluation(
+  attributesStore.submitEvaluation(
     playerId: 'player_123',
+    playerName: 'Player 123', // Placeholder
     position: 'ST', // Striker
     evaluation: evaluation,
+    ratedById:
+        FirebaseAuth.instance.currentUser?.uid ?? 'coach_id_1', // Placeholder
+    ratedByName:
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Coach Alpha', // Placeholder
+    ratedByRole: 'coach',
   );
 
   // ✅ FUT card automatically updates!
@@ -56,10 +65,17 @@ void examplePositionBasedEvaluation(BuildContext context) {
     recentPerformance: 0.7,
   );
 
-  attributesStore.updateFromCoachEvaluation(
+  attributesStore.submitEvaluation(
     playerId: 'defender_456',
+    playerName: 'Defender 456', // Placeholder
     position: 'CB', // Position determines base values
     evaluation: defenderEvaluation,
+    ratedById:
+        FirebaseAuth.instance.currentUser?.uid ?? 'coach_id_2', // Placeholder
+    ratedByName:
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Coach Beta', // Placeholder
+    ratedByRole: 'coach',
   );
 
   // Result: DEF will be high, PAC/SHO will be lower
@@ -75,10 +91,17 @@ void exampleUniformEvaluation(BuildContext context) {
   // Give player 80 rating across all categories
   final uniformEvaluation = CoachEvaluation.uniform(80);
 
-  attributesStore.updateFromCoachEvaluation(
+  attributesStore.submitEvaluation(
     playerId: 'player_789',
+    playerName: 'Player 789', // Placeholder
     position: 'CM', // Central Midfielder
     evaluation: uniformEvaluation,
+    ratedById:
+        FirebaseAuth.instance.currentUser?.uid ?? 'coach_id_3', // Placeholder
+    ratedByName:
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Coach Gamma', // Placeholder
+    ratedByRole: 'coach',
   );
 
   // All attributes will be adjusted to around 80
@@ -103,10 +126,17 @@ void exampleContextualModifiers(BuildContext context) {
     recentPerformance: 0.4, // ⚠️ 40% form (hasn't played in weeks)
   );
 
-  attributesStore.updateFromCoachEvaluation(
+  attributesStore.submitEvaluation(
     playerId: 'injured_player',
+    playerName: 'Injured Player', // Placeholder
     position: 'RW',
     evaluation: injuredPlayerEvaluation,
+    ratedById:
+        FirebaseAuth.instance.currentUser?.uid ?? 'coach_id_4', // Placeholder
+    ratedByName:
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Coach Delta', // Placeholder
+    ratedByRole: 'coach',
   );
 
   // Despite high coach ratings, final attributes will be lower
@@ -131,10 +161,17 @@ void exampleHotStreak(BuildContext context) {
     recentPerformance: 1.0, // ✅ 100% form (5 great games in a row!)
   );
 
-  attributesStore.updateFromCoachEvaluation(
+  attributesStore.submitEvaluation(
     playerId: 'hot_player',
+    playerName: 'Hot Player', // Placeholder
     position: 'ST',
     evaluation: hotStreakEvaluation,
+    ratedById:
+        FirebaseAuth.instance.currentUser?.uid ?? 'coach_id_5', // Placeholder
+    ratedByName:
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Coach Epsilon', // Placeholder
+    ratedByRole: 'coach',
   );
 
   // Attributes boosted by excellent form and fitness
@@ -177,18 +214,28 @@ class CoachEvaluationPanel extends StatelessWidget {
           onPressed: () {
             // When coach changes evaluation...
             final attributesStore = context.read<PlayerAttributesStore>();
+            final currentUser = FirebaseAuth.instance.currentUser;
+            final currentUserId = currentUser?.uid ?? 'anonymous_coach_id';
+            final currentUserName =
+                currentUser?.displayName ?? 'Anonymous Coach';
 
-            attributesStore.updateFromCoachEvaluation(
+            attributesStore.submitEvaluation(
               playerId: playerId,
+              playerName: 'Player Name for $playerId', // Placeholder
               position: 'CM',
               evaluation: const CoachEvaluation(
                 paceRating: 75,
                 shootingRating: 80,
                 passingRating: 85,
+                physicalCondition: 1.0,
+                recentPerformance: 0.9,
                 dribblingRating: 78,
                 defendingRating: 65,
                 physicalRating: 72,
               ),
+              ratedById: currentUserId,
+              ratedByName: currentUserName,
+              ratedByRole: 'coach',
             );
 
             // ✅ FUT card updates instantly!
@@ -250,10 +297,18 @@ class CoachEvaluationWorkflow {
     );
 
     // Step 2: Calculate and store attributes
-    attributesStore.updateFromCoachEvaluation(
+    attributesStore.submitEvaluation(
       playerId: playerId,
+      playerName: 'Player Name for $playerId', // Placeholder
       position: position,
       evaluation: evaluation,
+      ratedById:
+          FirebaseAuth.instance.currentUser?.uid ??
+          'workflow_coach_id', // Placeholder
+      ratedByName:
+          FirebaseAuth.instance.currentUser?.displayName ??
+          'Workflow Coach', // Placeholder
+      ratedByRole: 'coach',
     );
 
     // Step 3: Attributes automatically saved to Firestore (debounced)
@@ -305,10 +360,18 @@ void exampleMatchPerformanceUpdate(BuildContext context) {
     recentPerformance: 0.95, // Excellent recent form
   );
 
-  attributesStore.updateFromCoachEvaluation(
+  attributesStore.submitEvaluation(
     playerId: 'match_player',
+    playerName: 'Match Player', // Placeholder
     position: 'ST',
     evaluation: postMatchEvaluation,
+    ratedById:
+        FirebaseAuth.instance.currentUser?.uid ??
+        'match_coach_id', // Placeholder
+    ratedByName:
+        FirebaseAuth.instance.currentUser?.displayName ??
+        'Match Coach', // Placeholder
+    ratedByRole: 'coach',
   );
 
   // Player's card reflects improved performance

@@ -189,6 +189,7 @@ class NotificationService {
     try {
       final fcmToken = token ?? await _messaging.getToken();
       if (fcmToken == null) return;
+      debugPrint("🚀 TEST THIS TOKEN: $fcmToken");
 
       await _firestore.collection('users').doc(user.uid).set({
         "fcmToken": fcmToken,

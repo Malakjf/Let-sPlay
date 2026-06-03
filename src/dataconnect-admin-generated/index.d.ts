@@ -9,9 +9,7 @@ export type DateString = string;
 
 
 export interface CreateNewMatchData {
-  match_insert: {
-    id: UUIDString;
-  };
+  match_insert: Match_Key;
 }
 
 export interface CreateNewMatchVariables {
@@ -29,10 +27,7 @@ export interface Field_Key {
 }
 
 export interface JoinMatchData {
-  matchJoin_insert: {
-    userId: UUIDString;
-    matchId: UUIDString;
-  };
+  matchJoin_insert: MatchJoin_Key;
 }
 
 export interface JoinMatchVariables {
