@@ -1,6 +1,9 @@
 # Academy Performance Page Implementation
 Current Progress: 7/8 ✅
 
+# Academy Performance Page Implementation
+Current Progress: 7/8 ✅
+
 ## Approved Plan Steps
 
 ### 1. Create Data Models [✅]
