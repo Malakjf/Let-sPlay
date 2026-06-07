@@ -864,8 +864,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       spacing: 12,
       children: [
         IconButton(
-          icon: Icon(
-            FontAwesomeIcons.whatsapp as IconData?,
+          icon: FaIcon(
+            FontAwesomeIcons.whatsapp,
             color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
           ),
@@ -873,8 +873,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           tooltip: 'WhatsApp',
         ),
         IconButton(
-          icon: Icon(
-            FontAwesomeIcons.instagram as IconData?,
+          icon: FaIcon(
+            FontAwesomeIcons.instagram,
             color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
           ),
@@ -882,8 +882,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           tooltip: 'Instagram',
         ),
         IconButton(
-          icon: Icon(
-            FontAwesomeIcons.facebook as IconData?,
+          icon: FaIcon(
+            FontAwesomeIcons.facebook,
             color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7) ??
                 Colors.grey.withOpacity(0.7),
           ),

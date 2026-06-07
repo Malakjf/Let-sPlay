@@ -11,7 +11,7 @@ import 'management/AddFieldScreen.dart';
 class FieldsScreen extends StatefulWidget {
   final LocaleController ctrl;
   final UserPermission userPermission;
-  
+
   const FieldsScreen({
     super.key,
     required this.ctrl,
@@ -88,11 +88,11 @@ class _FieldsScreenState extends State<FieldsScreen> {
           .where(
             (f) =>
                 (f['name']?.toString() ?? '').toLowerCase().contains(
-                  query.toLowerCase(),
-                ) ||
+                      query.toLowerCase(),
+                    ) ||
                 (f['location']?.toString() ?? '').toLowerCase().contains(
-                  query.toLowerCase(),
-                ),
+                      query.toLowerCase(),
+                    ),
           )
           .toList();
     });
@@ -171,11 +171,13 @@ class _FieldsScreenState extends State<FieldsScreen> {
     final screenSize = MediaQuery.of(context).size;
     final screenWidth = screenSize.width;
     final screenHeight = screenSize.height;
-    
+
     // Calculate responsive values
-    final horizontalPadding = screenWidth * 0.05;
+    final horizontalPadding =
+        screenWidth > 900 ? screenWidth * 0.2 : screenWidth * 0.05;
     final headerFontSize = screenWidth > 600 ? 26.0 : 22.0;
-    
+    final textScaler = MediaQuery.textScalerOf(context);
+
     return ListenableBuilder(
       listenable: widget.ctrl,
       builder: (context, _) {
@@ -205,7 +207,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                             style: GoogleFonts.spaceGrotesk(
                               color: theme.textTheme.displayLarge?.color,
                               fontWeight: FontWeight.bold,
-                              fontSize: headerFontSize,
+                              fontSize: textScaler.scale(headerFontSize),
                             ),
                           ),
                         ),
@@ -253,8 +255,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                                   ? 'ابحث بالاسم أو الموقع'
                                   : 'Search by name or location',
                               hintStyle: TextStyle(
-                                color:
-                                    theme.textTheme.bodyMedium?.color
+                                color: theme.textTheme.bodyMedium?.color
                                         ?.withOpacity(0.9) ??
                                     Colors.grey,
                               ),
@@ -295,7 +296,9 @@ class _FieldsScreenState extends State<FieldsScreen> {
                             ),
                             SizedBox(height: screenHeight * 0.02),
                             Text(
-                              ar ? 'جاري تحميل الملاعب...' : 'Loading fields...',
+                              ar
+                                  ? 'جاري تحميل الملاعب...'
+                                  : 'Loading fields...',
                               style: TextStyle(
                                 color: theme.textTheme.bodyMedium?.color,
                               ),
@@ -361,8 +364,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                             children: [
                               Icon(
                                 Icons.stadium_outlined,
-                                color:
-                                    theme.textTheme.bodyMedium?.color
+                                color: theme.textTheme.bodyMedium?.color
                                         ?.withOpacity(0.5) ??
                                     Colors.white54,
                                 size: 64,
@@ -384,16 +386,16 @@ class _FieldsScreenState extends State<FieldsScreen> {
                               ),
                               if (_searchCtrl.text.isNotEmpty)
                                 Padding(
-                                  padding: EdgeInsets.only(top: screenHeight * 0.01),
+                                  padding:
+                                      EdgeInsets.only(top: screenHeight * 0.01),
                                   child: Text(
                                     ar
                                         ? 'حاول البحث بكلمات أخرى'
                                         : 'Try searching with different keywords',
                                     style: TextStyle(
-                                      color:
-                                          theme.textTheme.bodyMedium?.color
+                                      color: theme.textTheme.bodyMedium?.color
                                               ?.withOpacity(0.7) ??
-                                              Colors.grey,
+                                          Colors.grey,
                                       fontSize: 14,
                                     ),
                                     textAlign: TextAlign.center,
@@ -411,7 +413,8 @@ class _FieldsScreenState extends State<FieldsScreen> {
                         onRefresh: _loadFields,
                         color: theme.colorScheme.primary,
                         child: ListView.builder(
-                          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding),
                           itemCount: _filteredFields.length,
                           itemBuilder: (_, i) =>
                               _fieldCard(context, _filteredFields[i], ar),
@@ -460,7 +463,8 @@ class _FieldsScreenState extends State<FieldsScreen> {
   Widget _fieldCard(BuildContext context, Map<String, dynamic> f, bool ar) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+    final textScaler = MediaQuery.textScalerOf(context);
+
     return GestureDetector(
       onTap: () {
         // Check if user is guest before navigating
@@ -477,8 +481,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
       child: Builder(
         builder: (ctx) {
           final theme = Theme.of(ctx);
-          final price =
-              f['price'] != null &&
+          final price = f['price'] != null &&
                   (f['price'] is num) &&
                   (f['price'] as num) > 0
               ? '${f['price']} ${ar ? 'د.أ/ساعة' : 'JOD/hour'}'
@@ -514,7 +517,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                               style: GoogleFonts.spaceGrotesk(
                                 color: theme.textTheme.bodyMedium?.color,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 18,
+                                fontSize: textScaler.scale(18),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -533,7 +536,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                               price,
                               style: GoogleFonts.spaceGrotesk(
                                 color: theme.colorScheme.primary,
-                                fontSize: 12,
+                                fontSize: textScaler.scale(12),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -545,7 +548,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                         f['location'] ?? 'No Location',
                         style: GoogleFonts.spaceGrotesk(
                           color: theme.textTheme.titleMedium?.color,
-                          fontSize: 14,
+                          fontSize: textScaler.scale(14),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -556,41 +559,37 @@ class _FieldsScreenState extends State<FieldsScreen> {
                           children: [
                             Icon(
                               Icons.grass,
-                              color:
-                                  theme.textTheme.titleMedium?.color
+                              color: theme.textTheme.titleMedium?.color
                                       ?.withOpacity(0.7) ??
-                                      Colors.grey,
+                                  Colors.grey,
                               size: 14,
                             ),
                             SizedBox(width: screenWidth * 0.01),
                             Text(
                               f['surface'].toString(),
                               style: GoogleFonts.spaceGrotesk(
-                                color:
-                                    theme.textTheme.titleMedium?.color
+                                color: theme.textTheme.titleMedium?.color
                                         ?.withOpacity(0.7) ??
-                                        Colors.grey,
-                                fontSize: 12,
+                                    Colors.grey,
+                                fontSize: textScaler.scale(12),
                               ),
                             ),
                             SizedBox(width: screenWidth * 0.02),
                             Icon(
                               Icons.people,
-                              color:
-                                  theme.textTheme.titleMedium?.color
+                              color: theme.textTheme.titleMedium?.color
                                       ?.withOpacity(0.7) ??
-                                      Colors.grey,
+                                  Colors.grey,
                               size: 14,
                             ),
                             SizedBox(width: screenWidth * 0.01),
                             Text(
                               '${f['capacity'] ?? 0} ${ar ? 'شخص' : 'people'}',
                               style: GoogleFonts.spaceGrotesk(
-                                color:
-                                    theme.textTheme.titleMedium?.color
+                                color: theme.textTheme.titleMedium?.color
                                         ?.withOpacity(0.7) ??
-                                        Colors.grey,
-                                fontSize: 12,
+                                    Colors.grey,
+                                fontSize: textScaler.scale(12),
                               ),
                             ),
                           ],
@@ -602,7 +601,7 @@ class _FieldsScreenState extends State<FieldsScreen> {
                           style: GoogleFonts.spaceGrotesk(
                             color: theme.textTheme.titleMedium?.color
                                 ?.withOpacity(0.6),
-                            fontSize: 11,
+                            fontSize: textScaler.scale(11),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -622,4 +621,3 @@ class _FieldsScreenState extends State<FieldsScreen> {
     );
   }
 }
-

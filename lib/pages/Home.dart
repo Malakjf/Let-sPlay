@@ -148,16 +148,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final userData = await firebaseService.getUserData(user.uid);
         if (mounted) {
           setState(() {
-            if (userData['username'] != null &&
-                userData['username'] is String) {
-              _username = userData['username'] as String;
-            }
-            if (userData['profilePicUrl'] != null &&
-                userData['profilePicUrl'] is String) {
-              _profilePicUrl = userData['profilePicUrl'] as String;
-            }
-            final role = userData['role'] as String? ?? 'player';
-            final permissionLevel = userData['permissionLevel'] as String?;
+            _username = (userData['username'] as String?) ?? 'User';
+            _profilePicUrl = userData['profilePicUrl'] as String?;
+
+            final String role = (userData['role'] as String?) ?? 'player';
+            final String? permissionLevel =
+                userData['permissionLevel'] as String?;
             _userPermission = permissionFromRole(permissionLevel ?? role);
           });
         }
@@ -177,9 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final notifications = await NotificationService().getNotifications();
-      final unreadCount = notifications
-          .where((n) => !(n['read'] ?? false))
-          .length;
+      final unreadCount =
+          notifications.where((n) => !(n['read'] ?? false)).length;
       if (mounted) {
         setState(() {
           _unreadNotificationsCount = unreadCount;
@@ -299,8 +294,12 @@ class _HomeScreenState extends State<HomeScreen> {
           return false;
         }
 
-        final start = (data['startDate'] as Timestamp).toDate();
-        final end = (data['endDate'] as Timestamp).toDate();
+        final start = data['startDate'] is Timestamp
+            ? (data['startDate'] as Timestamp).toDate()
+            : DateTime.now();
+        final end = data['endDate'] is Timestamp
+            ? (data['endDate'] as Timestamp).toDate()
+            : DateTime.now();
 
         // Critical Date Fix: Include same moment as start/end
         return (now.isAtSameMomentAs(start) || now.isAfter(start)) &&
@@ -384,6 +383,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final titleFontSize = screenWidth > 600 ? 24.0 : 20.0;
     final avatarRadius = screenWidth > 600 ? 24.0 : 20.0;
 
+    final textScaler = MediaQuery.textScalerOf(context);
+
     return AnimatedBuilder(
       animation: Listenable.merge([widget.ctrl, MatchesService()]),
       builder: (context, child) {
@@ -395,9 +396,8 @@ class _HomeScreenState extends State<HomeScreen> {
         // 🔒 Filter matches based on permission
         if (_userPermission == UserPermission.player) {
           allMatches = allMatches.where((m) {
-            final title = (m['title'] ?? m['name'] ?? '')
-                .toString()
-                .toLowerCase();
+            final title =
+                (m['title'] ?? m['name'] ?? '').toString().toLowerCase();
             return !title.contains('private') && !title.contains('academy');
           }).toList();
         }
@@ -414,9 +414,8 @@ class _HomeScreenState extends State<HomeScreen> {
         allMatches = allMatches.where((m) => !_isMatchEnded(m)).toList();
 
         // Filter joined matches using the same ended logic for consistency
-        final visibleJoinedMatches = _allJoinedMatches
-            .where((m) => !_isMatchEnded(m))
-            .toList();
+        final visibleJoinedMatches =
+            _allJoinedMatches.where((m) => !_isMatchEnded(m)).toList();
 
         // Find the joined match (next match)
 
@@ -491,41 +490,35 @@ class _HomeScreenState extends State<HomeScreen> {
                                       backgroundColor: theme.colorScheme.primary
                                           .withOpacity(0.2),
                                       backgroundImage:
-                                          _profilePicUrl != null &&
-                                              _profilePicUrl!.isNotEmpty
-                                          ? NetworkImage(
-                                              _profilePicUrl!.contains('?')
-                                                  ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
-                                                  : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
-                                            )
-                                          : null,
+                                          (_profilePicUrl?.isNotEmpty ?? false)
+                                              ? NetworkImage(
+                                                  _profilePicUrl!.contains('?')
+                                                      ? '$_profilePicUrl&t=${DateTime.now().millisecondsSinceEpoch}'
+                                                      : '$_profilePicUrl?t=${DateTime.now().millisecondsSinceEpoch}',
+                                                )
+                                              : null,
                                       onBackgroundImageError:
                                           _profilePicUrl != null &&
-                                              _profilePicUrl!.isNotEmpty
-                                          ? (exception, stackTrace) {
-                                              debugPrint(
-                                                '❌ Avatar load error: $exception',
-                                              );
-                                            }
-                                          : null,
-                                      child:
-                                          _profilePicUrl == null ||
+                                                  _profilePicUrl!.isNotEmpty
+                                              ? (exception, stackTrace) {
+                                                  debugPrint(
+                                                    '❌ Avatar load error: $exception',
+                                                  );
+                                                }
+                                              : null,
+                                      child: _profilePicUrl == null ||
                                               _profilePicUrl!.isEmpty
                                           ? Text(
                                               _username.isNotEmpty
                                                   ? _username
-                                                        .substring(0, 1)
-                                                        .toUpperCase()
+                                                      .substring(0, 1)
+                                                      .toUpperCase()
                                                   : 'U',
                                               style: TextStyle(
                                                 color:
                                                     theme.colorScheme.primary,
                                                 fontWeight: FontWeight.bold,
-                                                fontSize:
-                                                    MediaQuery.textScaleFactorOf(
-                                                      context,
-                                                    ) *
-                                                    16,
+                                                fontSize: textScaler.scale(16),
                                               ),
                                             )
                                           : const SizedBox.shrink(),
@@ -536,10 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     child: Text(
                                       '${_welcome(ar)} $_username',
                                       style: GoogleFonts.spaceGrotesk(
-                                        color:
-                                            theme
-                                                .textTheme
-                                                .displayLarge
+                                        color: theme.textTheme.displayLarge
                                                 ?.color ??
                                             Colors.white,
                                         fontWeight: FontWeight.bold,
@@ -582,11 +572,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   .toString(),
                                               style: TextStyle(
                                                 color: Colors.white,
-                                                fontSize:
-                                                    MediaQuery.textScaleFactorOf(
-                                                      context,
-                                                    ) *
-                                                    10,
+                                                fontSize: textScaler.scale(10),
                                                 fontWeight: FontWeight.bold,
                                               ),
                                               textAlign: TextAlign.center,
@@ -630,8 +616,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               ar ? 'مبارياتك' : 'Your Matches',
                               style: GoogleFonts.spaceGrotesk(
-                                color:
-                                    theme.textTheme.displayLarge?.color ??
+                                color: theme.textTheme.displayLarge?.color ??
                                     Colors.white,
                                 fontSize: titleFontSize,
                                 fontWeight: FontWeight.bold,
@@ -653,9 +638,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: TextStyle(
                                   color: theme.colorScheme.primary,
                                   fontWeight: FontWeight.bold,
-                                  fontSize:
-                                      MediaQuery.textScaleFactorOf(context) *
-                                      14,
+                                  fontSize: textScaler.scale(14),
                                 ),
                               ),
                             ),
@@ -677,8 +660,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         _near(ar),
                         style: GoogleFonts.spaceGrotesk(
-                          color:
-                              theme.textTheme.displayLarge?.color ??
+                          color: theme.textTheme.displayLarge?.color ??
                               Colors.white,
                           fontSize: titleFontSize,
                           fontWeight: FontWeight.bold,
@@ -1032,8 +1014,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         text,
                         style: GoogleFonts.spaceGrotesk(
-                          color:
-                              theme.textTheme.bodyMedium?.color ??
+                          color: theme.textTheme.bodyMedium?.color ??
                               Colors.white70,
                           fontSize: dayFontSize,
                           fontWeight: FontWeight.w600,
@@ -1046,8 +1027,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         '${date.day}',
                         style: GoogleFonts.spaceGrotesk(
-                          color:
-                              theme.textTheme.bodyMedium?.color ??
+                          color: theme.textTheme.bodyMedium?.color ??
                               Colors.white70,
                           fontSize: dayFontSize,
                           fontWeight: FontWeight.w500,
@@ -1236,6 +1216,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double screenWidth,
     double screenHeight,
   ) {
+    final textScaler = MediaQuery.textScalerOf(context);
     final visibility = match['visibility'] as String?;
     final isAcademy = visibility == 'academy';
     final isPrivate = visibility == 'private';
@@ -1243,8 +1224,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Check payment status
     bool hasPaid = false;
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null && match['participants'] != null) {
-      final participants = List.from(match['participants']);
+    if (currentUser != null && match['participants'] is Iterable) {
+      final participants = List.from(match['participants'] as Iterable);
       final p = participants.firstWhere(
         (p) => p['userId'] == currentUser.uid,
         orElse: () => null,
@@ -1255,7 +1236,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     // Responsive values
-    final titleFontSize = screenWidth > 600 ? 18.0 : 16.0;
     final iconSize = screenWidth > 600 ? 18.0 : 16.0;
     final horizontalPadding = screenWidth * 0.04;
     final verticalPadding = screenHeight * 0.02;
@@ -1276,11 +1256,11 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    match['title'] ?? match['name'] ?? 'Match',
+                    (match['title'] ?? match['name'] ?? 'Match').toString(),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.textTheme.bodyLarge?.color,
-                      fontSize: titleFontSize,
+                      fontSize: textScaler.scale(16),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1323,7 +1303,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         color: bg,
                         fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                        fontSize: textScaler.scale(12),
                       ),
                     ),
                   );
@@ -1343,7 +1323,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       ar ? 'أكاديمية' : 'Academy',
                       style: TextStyle(
-                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
+                        fontSize: textScaler.scale(10),
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1365,7 +1345,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       ar ? 'خاص' : 'Private',
                       style: TextStyle(
-                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
+                        fontSize: textScaler.scale(10),
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1393,7 +1373,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         ar ? 'انضممت' : 'Joined',
                         style: TextStyle(
-                          fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                          fontSize: textScaler.scale(12),
                           color: Colors.green,
                           fontWeight: FontWeight.w500,
                         ),
@@ -1455,7 +1435,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       '✅',
                       style: TextStyle(
-                        fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                        fontSize: textScaler.scale(12),
                       ),
                     ),
                   ),
@@ -1468,7 +1448,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _formatMatchDate(match['date']),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                fontSize: MediaQuery.textScaleFactorOf(context) * 14,
+                fontSize: textScaler.scale(14),
               ),
             ),
             SizedBox(height: screenHeight * 0.005),
@@ -1489,7 +1469,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: theme.textTheme.bodySmall?.color?.withOpacity(
                           0.6,
                         ),
-                        fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                        fontSize: textScaler.scale(12),
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -1519,8 +1499,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             '${match['playersCount'] ?? 0}/${match['maxPlayers'] ?? 10}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
-                              fontSize:
-                                  MediaQuery.textScaleFactorOf(context) * 14,
+                              fontSize: textScaler.scale(14),
                             ),
                           ),
                         ],
@@ -1529,7 +1508,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       LinearProgressIndicator(
                         value: (match['maxPlayers'] ?? 10) > 0
                             ? (match['playersCount'] ?? 0) /
-                                  (match['maxPlayers'] ?? 10)
+                                (match['maxPlayers'] ?? 10)
                             : 0,
                         backgroundColor: theme.dividerColor.withOpacity(0.3),
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -1583,6 +1562,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double screenWidth,
     double screenHeight,
   ) {
+    final textScaler = MediaQuery.textScalerOf(context);
     final theme = Theme.of(context);
     final matchId = match['id']?.toString();
     // Check if this match is in the user's joined matches list
@@ -1596,8 +1576,8 @@ class _HomeScreenState extends State<HomeScreen> {
     // Check payment status
     bool hasPaid = false;
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser != null && match['participants'] != null) {
-      final participants = List.from(match['participants']);
+    if (currentUser != null && match['participants'] is Iterable) {
+      final participants = List.from(match['participants'] as Iterable);
       final p = participants.firstWhere(
         (p) => p['userId'] == currentUser.uid,
         orElse: () => null,
@@ -1633,7 +1613,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: theme.textTheme.bodyLarge?.color,
-                      fontSize: titleFontSize,
+                      fontSize: textScaler.scale(titleFontSize),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1654,7 +1634,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       ar ? 'أكاديمية' : 'Academy',
                       style: TextStyle(
-                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
+                        fontSize: textScaler.scale(10),
                         color: Colors.purple,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1676,7 +1656,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Text(
                       ar ? 'خاص' : 'Private',
                       style: TextStyle(
-                        fontSize: MediaQuery.textScaleFactorOf(context) * 10,
+                        fontSize: textScaler.scale(10),
                         color: Colors.grey,
                         fontWeight: FontWeight.bold,
                       ),
@@ -1705,8 +1685,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           ar ? 'انضممت' : 'Joined',
                           style: TextStyle(
-                            fontSize:
-                                MediaQuery.textScaleFactorOf(context) * 12,
+                            fontSize: textScaler.scale(12),
                             color: Colors.green,
                             fontWeight: FontWeight.w500,
                           ),
@@ -1731,7 +1710,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         '✅',
                         style: TextStyle(
-                          fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                          fontSize: textScaler.scale(12),
                         ),
                       ),
                     ),
@@ -1784,7 +1763,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _formatMatchDate(match['date']),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.textTheme.bodyMedium?.color?.withOpacity(0.7),
-                fontSize: MediaQuery.textScaleFactorOf(context) * 14,
+                fontSize: textScaler.scale(14),
               ),
             ),
             SizedBox(height: screenHeight * 0.005),
@@ -1805,7 +1784,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: theme.textTheme.bodySmall?.color?.withOpacity(
                           0.6,
                         ),
-                        fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                        fontSize: textScaler.scale(12),
                       ),
                       overflow: TextOverflow.ellipsis,
                       maxLines: 1,
@@ -1824,7 +1803,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     match['time'].toString(),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.textTheme.bodySmall?.color?.withOpacity(0.6),
-                      fontSize: MediaQuery.textScaleFactorOf(context) * 12,
+                      fontSize: textScaler.scale(12),
                     ),
                   ),
                 ],
@@ -1869,7 +1848,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(
                       color: bg,
                       fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                      fontSize: textScaler.scale(12),
                     ),
                   ),
                 ),
@@ -1896,8 +1875,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             '${match['playersCount'] ?? 0}/${match['maxPlayers'] ?? 10}',
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w500,
-                              fontSize:
-                                  MediaQuery.textScaleFactorOf(context) * 14,
+                              fontSize: textScaler.scale(14),
                             ),
                           ),
                         ],
@@ -1906,7 +1884,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       LinearProgressIndicator(
                         value: (match['maxPlayers'] ?? 10) > 0
                             ? (match['playersCount'] ?? 0) /
-                                  (match['maxPlayers'] ?? 10)
+                                (match['maxPlayers'] ?? 10)
                             : 0,
                         backgroundColor: theme.dividerColor.withOpacity(0.3),
                         valueColor: AlwaysStoppedAnimation<Color>(
@@ -2004,9 +1982,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     isJoined
                         ? (ar ? 'خيارات' : 'Options')
                         : ((match['playersCount'] ?? 0) >=
-                                  (match['maxPlayers'] ?? 10)
-                              ? (ar ? 'قائمة الانتظار' : 'Waiting List')
-                              : (ar ? 'انضم' : 'Join')),
+                                (match['maxPlayers'] ?? 10)
+                            ? (ar ? 'قائمة الانتظار' : 'Waiting List')
+                            : (ar ? 'انضم' : 'Join')),
                   ),
                   style: ElevatedButton.styleFrom(
                     elevation: 2,
@@ -2037,6 +2015,7 @@ class _HomeScreenState extends State<HomeScreen> {
     double screenHeight,
   ) {
     final theme = Theme.of(context);
+    final textScaler = MediaQuery.textScalerOf(context);
     final iconSize = screenWidth > 600 ? 64.0 : 48.0;
     final titleFontSize = screenWidth > 600 ? 22.0 : 18.0;
 
@@ -2060,7 +2039,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ar ? 'لا توجد مباريات' : 'No matches available',
             style: GoogleFonts.spaceGrotesk(
               color: theme.textTheme.displayLarge?.color ?? Colors.white,
-              fontSize: titleFontSize,
+              fontSize: textScaler.scale(titleFontSize),
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -2113,9 +2092,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final matchId = match['id']?.toString();
     if (matchId == null) return;
 
-    final matchRef = FirebaseFirestore.instance
-        .collection('matches')
-        .doc(matchId);
+    final matchRef =
+        FirebaseFirestore.instance.collection('matches').doc(matchId);
 
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {

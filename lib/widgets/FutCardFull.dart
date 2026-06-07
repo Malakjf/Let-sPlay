@@ -20,9 +20,9 @@ String getFutCardAssetByLevel(int level) {
 }
 
 Color getFutColorByLevel(int level) {
-  if (level < 25) return const Color(0xFFCD7F32); // Bronze
-  if (level < 50) return const Color(0xFFC0C0C0); // Silver
-  if (level < 75) return const Color(0xFFFFD700); // Gold
+  if (level <= 25) return const Color(0xFFCD7F32); // Bronze
+  if (level <= 50) return const Color(0xFFC0C0C0); // Silver
+  if (level <= 75) return const Color(0xFFFFD700); // Gold
   return const Color(0xFFB9F2FF);
 }
 
@@ -149,12 +149,25 @@ class _FutCardFullState extends State<FutCardFull>
     // 🎯 Use Consumer to listen to PlayerAttributesStore (Single Source of Truth)
     return Consumer<PlayerAttributesStore>(
       builder: (context, attrStore, child) {
-        final attributes =
-            widget.overrideAttributes ??
+        final attributes = widget.overrideAttributes ??
             attrStore.getPlayerAttributes(widget.playerId);
         final effectiveRating = widget.overrideRating ?? widget.rating;
 
-        // 🚀 Detect Level Up
+        // 🛠️ Asset Debug Logging
+        final assetPath = getFutCardAssetByLevel(effectiveRating);
+        final tierName = effectiveRating <= 25
+            ? 'Bronze'
+            : effectiveRating <= 50
+                ? 'Selver'
+                : effectiveRating <= 75
+                    ? 'Gold'
+                    : 'Diamond';
+
+        debugPrint('FUT Card: Level=$effectiveRating');
+        debugPrint('FUT Card: Asset=$assetPath');
+        debugPrint('FUT Card: Tier=$tierName');
+
+        // � Detect Level Up
         if (_prevLevel != null && effectiveRating > _prevLevel!) {
           _levelUpController.forward(from: 0.0);
         }
@@ -170,11 +183,26 @@ class _FutCardFullState extends State<FutCardFull>
             // We derive a scale factor from the actual width provided by the parent.
             final double cardWidth = constraints.maxWidth;
 
-            // If width is not finite or zero, we cannot render the card.
-            // This indicates a layout problem where FutCardFull is not given width constraints.
-            // A wrapper like FutCardResponsive should be used to provide constraints.
+            // iPad FIX: Handle infinite or zero constraints gracefully to avoid blank screens
             if (!cardWidth.isFinite || cardWidth <= 0) {
-              return const SizedBox.shrink();
+              final screenWidth = MediaQuery.of(context).size.width;
+              final fallbackWidth =
+                  screenWidth > 600 ? 400.0 : screenWidth * 0.85;
+              return Center(
+                child: SizedBox(
+                  width: fallbackWidth,
+                  height: fallbackWidth * 1.29,
+                  child: _buildCard(
+                    context,
+                    attributes,
+                    isGk: isGk,
+                    effectiveRating: effectiveRating,
+                    scale: fallbackWidth / 480.0,
+                    cardWidth: fallbackWidth,
+                    cardHeight: fallbackWidth * 1.29,
+                  ),
+                ),
+              );
             }
 
             // The scale factor is the ratio of the actual width to the design width.
@@ -365,9 +393,9 @@ class _FutCardFullState extends State<FutCardFull>
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) {
                     return Image.asset(
-                      'assets/images/gold.png',
+                      'assets/images/bronze.png',
                       fit: BoxFit.contain,
-                    ); // Fallback to gold
+                    ); // Fallback to bronze as safest base
                   },
                 ),
               ),
@@ -456,7 +484,8 @@ class _FutCardFullState extends State<FutCardFull>
                     image: hasValidUrl
                         ? DecorationImage(
                             image: CachedNetworkImageProvider(
-                              ImageHelper.refreshImageUrl(widget.avatarUrl!),
+                              ImageHelper.refreshImageUrl(
+                                  widget.avatarUrl ?? ''),
                               cacheKey: widget.avatarUrl,
                             ),
                             fit: BoxFit.cover,
@@ -471,12 +500,12 @@ class _FutCardFullState extends State<FutCardFull>
                           child: Text(
                             (widget.playerName.isNotEmpty)
                                 ? widget.playerName
-                                      .split(' ')
-                                      .where((e) => e.isNotEmpty)
-                                      .map((e) => e[0])
-                                      .take(2)
-                                      .join()
-                                      .toUpperCase()
+                                    .split(' ')
+                                    .where((e) => e.isNotEmpty)
+                                    .map((e) => e[0])
+                                    .take(2)
+                                    .join()
+                                    .toUpperCase()
                                 : '??',
                             style: GoogleFonts.saira(
                               fontSize: 38 * scale,
@@ -541,8 +570,7 @@ class _FutCardFullState extends State<FutCardFull>
                 animation: _levelUpController,
                 builder: (context, child) {
                   // Badge glows during level up
-                  final double glow =
-                      _levelUpController.value > 0 &&
+                  final double glow = _levelUpController.value > 0 &&
                           _levelUpController.value < 0.8
                       ? (1.0 - (_levelUpController.value - 0.5).abs() * 2)
                       : 0.0;
